@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gravity Match Pro v0.8.0</title>
+    <style>
+        :root {
+            --bg-color: #f0f3f7;
+            --card-back: #6c5ce7;
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --accent: #ff7675;
+            --success: #00b894;
+            --primary: #4834d4;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            margin: 0; padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute; width: 100%; height: 100%;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; z-index: 10;
+        }
+
+        .active-screen { display: flex !important; }
+
+        .glass-panel {
+            background: var(--glass-bg); backdrop-filter: blur(10px);
+            padding: 25px; border-radius: 24px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            text-align: center; width: 95%; max-width: 400px;
+            max-height: 90vh; overflow-y: auto;
+        }
+
+        #game-area { justify-content: space-between; padding: 40px 20px; }
+
+        #game-board { 
+            position: relative; 
+            width: 340px; 
+            height: 340px; 
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .hud { 
+            color: white; 
+            width: 340px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(0,0,0,0.25);
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hud-btns { display: flex; gap: 10px; }
+
+        .skin-selector { 
+            display: flex; 
+            gap: 15px; 
+            background: rgba(255,255,255,0.15);
+            padding: 12px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-top: 20px;
+        }
+
+        .skin-btn { 
+            width: 55px; height: 55px; border-radius: 12px; border: 3px solid white; 
+            cursor: pointer; background-size: cover; display: flex; align-items: center; 
+            justify-content: center; font-weight: bold; color: white; text-shadow: 1px 1px 2px black;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 1.2rem;
+            background-position: center;
+        }
+        .skin-btn.active { border-color: var(--accent); transform: scale(1.1); box-shadow: 0 0 15px var(--accent); }
+
+        .card {
+            position: absolute; width: 75px; height: 75px;
+            cursor: pointer; transition: transform 0.6s, top 0.5s, left 0.5s, opacity 0.3s;
+            transform-style: preserve-3d;
+            will-change: top, left, transform;
+            backface-visibility: hidden;            
+        }
+        .card.flipped { transform: rotateY(180deg); }
+        .card.hidden { opacity: 0; pointer-events: none; transform: scale(0) rotateY(180deg); }
+
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .card-front { background: white; transform: rotateY(180deg); background-repeat: no-repeat; }
+        .card-back { background-color: var(--card-back); border: 3px solid white; background-size: cover; background-position: center; }
+
+        button {
+            background: var(--accent); color: white; border: none;
+            padding: 16px 24px; border-radius: 15px; font-weight: bold;
+            cursor: pointer; margin: 8px; transition: 0.2s; width: 85%;
+            font-size: 1rem; text-transform: uppercase;
+        }
+        button:active { transform: scale(0.95); }
+
+        .icon-btn { 
+            width: 45px !important; height: 45px; padding: 0 !important; margin: 0 !important; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 1.3rem; border-radius: 50%;
+        }
+
+        table { width: 100%; margin: 10px 0; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); text-align: center; }
+
+        label { display: block; margin-top: 8px; font-size: 0.75rem; font-weight: bold; text-align: left; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 6px; margin-top: 2px; border-radius: 5px; border: 1px solid #ccc; font-size: 0.8rem; }
+        .skin-config-group { border: 1px solid #ddd; padding: 8px; margin-top: 10px; border-radius: 12px; background: rgba(0,0,0,0.03); }
+
+        @keyframes storm {
+            0% { transform: scale(1) rotate(0); }
+            50% { transform: scale(0.5) rotate(180deg); }
+            100% { transform: scale(1) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="screen-menu" class="screen active-screen">
+        <div class="glass-panel">
+            <h1 style="margin:0 0 20px 0; color: var(--primary)">Gravity Match</h1>
+            <button onclick="game.start()">JOGAR</button>
+            <button onclick="game.showScreen('screen-config')" style="background:#636e72">AJUSTES</button>
+            
+            <div style="margin-top:20px">
+                <h3 style="margin: 10px 0; font-size: 1rem; opacity: 0.8;">🏆 Ranking</h3>
+                <table id="main-ranking-table">
+                    <tbody id="ranking-body"></tbody>
+                </table>
+                <p id="no-rank-msg" style="display:none; font-size:0.85rem">Nenhum recorde ainda.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-config" class="screen">
+        <div class="glass-panel">
+            <h2 style="margin-bottom: 15px;">Ajustes</h2>
+            <div style="display: flex; gap: 10px;">
+                <label>Memorizar (ms): <input type="number" id="cfg-memo"></label>
+                <label>Shuffle Cada (ms): <input type="number" id="cfg-shf-time"></label>
+            </div>
+            
+            <div id="skin-inputs-container"></div>
+
+            <div style="margin-top: 15px;">
+                <button onclick="game.saveSettings()">SALVAR</button>
+                <button onclick="game.showScreen('screen-menu')" style="background:#b2bec3">VOLTAR</button>
+                <button onclick="game.clearRanking()" style="background:#ff7675; width: auto; padding: 5px 15px; font-size: 0.7rem; margin-top: 10px;">Zerar Placar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-area" class="screen">
+        <div class="hud">
+            <div><span id="timer">0</span>ms</div>
+            <div class="hud-btns">
+                <button class="icon-btn" onclick="game.start()" title="Reiniciar">🔄</button>
+                <button class="icon-btn" onclick="game.showScreen('screen-menu')" style="background:#636e72" title="Início">🏠</button>
+            </div>
+        </div>
+        
+        <div id="game-board"></div>
+
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div class="skin-selector" id="game-skin-selector"></div>
+        </div>
+    </div>
+
+    <div id="screen-victory" class="screen">
+        <div class="glass-panel" style="border: 4px solid var(--success)">
+            <h1 style="color:var(--success); margin-top:0">VITÓRIA!</h1>
+            <p style="font-size: 1.3rem">Tempo: <strong id="final-time-display" style="color: var(--primary)"></strong>ms</p>
+            <button onclick="game.start()" style="background: var(--success)">NOVO JOGO</button>
+            <button onclick="game.showScreen('screen-menu')" style="background: #636e72">VOLTAR</button>
+        </div>
+    </div>
+
+    <script>
+        const EMOJIS = ['🍎','🍌','🍇','🍓','🥝','🍒','🍍','🍊'];
+
+        class GameEngine {
+            constructor() {
+                const saved = JSON.parse(localStorage.getItem('g07_cfg'));
+                this.config = saved || {
+                    memoTime: 3000,
+                    shuffleTime: 10000,
+                    currentSkin: 0,
+                    skins: [
+                        { sprite: '', back: '' },
+                        { sprite: '', back: '' },
+                        { sprite: '', back: '' }
+                    ]
+                };
+                
+                // Variáveis de controle de ciclo (rAF)
+                this.startTime = null;
+                this.rafId = null;
+                this.lastShuffleCheck = 0;
+                
+                this.isLocked = false;
+                this.flipped = [];
+                this.cards = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.renderSkinInputs();
+                this.renderRanking();
+                this.preloadSkins();
+            }
+
+            // Otimização: Pre-load para evitar flicker
+            preloadSkins() {
+                this.config.skins.forEach(skin => {
+                    if(skin.sprite) new Image().src = skin.sprite;
+                    if(skin.back) new Image().src = skin.back;
+                });
+            }
+
+            renderSkinInputs() {
+                const container = document.getElementById('skin-inputs-container');
+                container.innerHTML = this.config.skins.map((s, i) => `
+                    <div class="skin-config-group">
+                        <strong>Skin ${String.fromCharCode(65 + i)}</strong>
+                        <label>Sprite: <input type="text" id="cfg-sprite-${i}" value="${s.sprite || ''}" placeholder="URL da imagem"></label>
+                        <label>Verso: <input type="text" id="cfg-back-${i}" value="${s.back || ''}" placeholder="URL da imagem"></label>
+                    </div>
+                `).join('');
+
+                document.getElementById('cfg-memo').value = this.config.memoTime;
+                document.getElementById('cfg-shf-time').value = this.config.shuffleTime;
+            }
+
+            showScreen(id) {
+                this.stopTimers();
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+                document.getElementById(id).classList.add('active-screen');
+                if(id === 'screen-menu') this.renderRanking();
+            }
+
+            saveSettings() {
+                this.config.memoTime = parseInt(document.getElementById('cfg-memo').value) || 3000;
+                this.config.shuffleTime = parseInt(document.getElementById('cfg-shf-time').value) || 10000;
+                
+                for(let i=0; i<3; i++) {
+                    this.config.skins[i].sprite = document.getElementById(`cfg-sprite-${i}`).value;
+                    this.config.skins[i].back = document.getElementById(`cfg-back-${i}`).value;
+                }
+
+                localStorage.setItem('g07_cfg', JSON.stringify(this.config));
+                this.preloadSkins();
+                this.showScreen('screen-menu');
+            }
+
+            start() {
+                this.stopTimers();
+                this.flipped = [];
+                this.isLocked = true;
+                this.cards = [];
+                this.lastShuffleCheck = 0;
+                
+                document.getElementById('timer').textContent = '0';
+                
+                this.renderSkinButtons();
+                this.showScreen('game-area');
+                this.createBoard();
+                
+                // Mostra as cartas para memorização
+                this.cards.forEach(c => c.el.classList.add('flipped'));
+                
+                setTimeout(() => {
+                    this.cards.forEach(c => c.el.classList.remove('flipped'));
+                    this.isLocked = false;
+                    this.startTime = performance.now(); // Mais preciso que Date.now()
+                    this.startTimers();
+                }, this.config.memoTime);
+            }
+
+            renderSkinButtons() {
+                const container = document.getElementById('game-skin-selector');
+                container.innerHTML = this.config.skins.map((s, i) => `
+                    <div class="skin-btn ${this.config.currentSkin === i ? 'active' : ''}" 
+                         style="background-image: url('${s.back}'); background-color: ${s.back ? 'transparent' : '#6c5ce7'}"
+                         onclick="game.changeSkin(${i})">
+                         ${String.fromCharCode(65 + i)}
+                    </div>
+                `).join('');
+            }
+
+            changeSkin(idx) {
+                this.config.currentSkin = idx;
+                localStorage.setItem('g07_cfg', JSON.stringify(this.config));
+                this.start(); 
+            }
+
+            // Otimização: Fisher-Yates Shuffle
+            shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            createBoard() {
+                const board = document.getElementById('game-board');
+                board.innerHTML = '';
+                let types = [];
+                for(let i=0; i<8; i++) types.push(i, i);
+                this.shuffleArray(types);
+
+                types.forEach((type, i) => {
+                    const el = document.createElement('div');
+                    el.className = 'card';
+                    const front = document.createElement('div');
+                    front.className = 'card-face card-front';
+                    const back = document.createElement('div');
+                    back.className = 'card-face card-back';
+
+                    el.append(front, back);
+                    el.onclick = () => this.handleFlip(i);
+                    board.appendChild(el);
+
+                    const obj = { el, type, active: true, x: i % 4, y: Math.floor(i / 4) };
+                    this.cards.push(obj);
+                    this.updatePos(obj);
+                });
+                this.applySkinToCards();
+            }
+
+            applySkinToCards() {
+                const skin = this.config.skins[this.config.currentSkin];
+                this.cards.forEach(c => {
+                    const front = c.el.querySelector('.card-front');
+                    const back = c.el.querySelector('.card-back');
+                    
+                    if(skin.sprite) {
+                        front.textContent = '';
+                        front.style.backgroundImage = `url('${skin.sprite}')`;
+                        front.style.backgroundSize = '400% 200%';
+                        front.style.backgroundPosition = `${(c.type % 4) * 33.33}% ${Math.floor(c.type / 4) * 100}%`;
+                    } else {
+                        front.style.backgroundImage = 'none';
+                        front.textContent = EMOJIS[c.type];
+                        front.style.fontSize = '2.2rem';
+                    }
+
+                    if(skin.back) back.style.backgroundImage = `url('${skin.back}')`;
+                    else back.style.backgroundImage = 'none';
+                });
+            }
+
+            updatePos(c) {
+                c.el.style.left = `${c.x * 85}px`;
+                c.el.style.top = `${c.y * 85}px`;
+            }
+
+            handleFlip(idx) {
+                const card = this.cards[idx];
+                if (this.isLocked || !card.active || this.flipped.includes(card) || card.el.classList.contains('flipped')) return;
+                
+                card.el.classList.add('flipped');
+                this.flipped.push(card);
+
+                if (this.flipped.length === 2) {
+                    this.isLocked = true;
+                    this.checkMatch();
+                }
+            }
+
+            checkMatch() {
+                const [c1, c2] = this.flipped;
+                if (c1.type === c2.type) {
+                    setTimeout(() => {
+                        c1.active = c2.active = false;
+                        c1.el.classList.add('hidden');
+                        c2.el.classList.add('hidden');
+                        this.applyGravity();
+                        this.flipped = [];
+                        this.isLocked = false;
+                        this.checkWin();
+                    }, 600);
+                } else {
+                    setTimeout(() => {
+                        c1.el.classList.remove('flipped');
+                        c2.el.classList.remove('flipped');
+                        this.flipped = [];
+                        this.isLocked = false;
+                    }, 800);
+                }
+            }
+
+            applyGravity() {
+                for(let x=0; x<4; x++) {
+                    let col = this.cards.filter(c => c.x === x && c.active).sort((a,b) => b.y - a.y);
+                    col.forEach((c, i) => { c.y = 3 - i; this.updatePos(c); });
+                }
+            }
+
+            // Performance: requestAnimationFrame Loop
+            startTimers() {
+                const loop = (now) => {
+                    if(!this.startTime) return;
+                    
+                    const elapsed = Math.floor(now - this.startTime);
+                    document.getElementById('timer').textContent = elapsed;
+
+                    // Lógica do Shuffle (Storm)
+                    const currentMod = elapsed % this.config.shuffleTime;
+                    if (currentMod < this.lastShuffleCheck && !this.isLocked) {
+                        this.triggerStorm();
+                    }
+                    this.lastShuffleCheck = currentMod;
+
+                    this.rafId = requestAnimationFrame(loop);
+                };
+                this.rafId = requestAnimationFrame(loop);
+            }
+
+            stopTimers() {
+                if(this.rafId) cancelAnimationFrame(this.rafId);
+                this.rafId = null;
+                this.startTime = null;
+            }
+
+            triggerStorm() {
+                this.isLocked = true;
+                const actives = this.cards.filter(c => c.active);
+                
+                // Visual storm animation
+                actives.forEach(c => c.el.style.animation = 'storm 0.6s ease-in-out');
+                
+                setTimeout(() => {
+                    // Fisher-Yates nas posições atuais das cartas ativas
+                    const currentPositions = actives.map(c => ({x: c.x, y: c.y}));
+                    this.shuffleArray(currentPositions);
+
+                    actives.forEach((c, i) => {
+                        c.x = currentPositions[i].x; 
+                        c.y = currentPositions[i].y;
+                        this.updatePos(c);
+                        c.el.style.animation = '';
+                        c.el.classList.add('flipped'); // Revela brevemente no shuffle
+                    });
+
+                    // Pausa para re-memorizar após o shuffle
+                    setTimeout(() => {
+                        actives.forEach(c => { 
+                            if (!this.flipped.includes(c)) c.el.classList.remove('flipped'); 
+                        });
+                        this.isLocked = false;
+                    }, this.config.memoTime);
+                }, 600);
+            }
+
+            checkWin() {
+                if (this.cards.length > 0 && this.cards.every(c => !c.active)) {
+                    const finalTime = parseInt(document.getElementById('timer').textContent);
+                    this.stopTimers();
+                    this.saveScore(finalTime);
+                    document.getElementById('final-time-display').textContent = finalTime;
+                    this.showScreen('screen-victory');
+                }
+            }
+
+            saveScore(t) {
+                let rank = JSON.parse(localStorage.getItem('g07_rank') || '[]');
+                rank.push(t);
+                rank.sort((a,b) => a - b);
+                localStorage.setItem('g07_rank', JSON.stringify(rank.slice(0, 5)));
+            }
+
+            renderRanking() {
+                const body = document.getElementById('ranking-body');
+                const table = document.getElementById('main-ranking-table');
+                const msg = document.getElementById('no-rank-msg');
+                const rank = JSON.parse(localStorage.getItem('g07_rank') || '[]');
+                
+                if (rank.length > 0) {
+                    table.style.display = 'table';
+                    msg.style.display = 'none';
+                    body.innerHTML = rank.map((t, i) => `<tr><td><strong>${i+1}º</strong></td><td>${t}ms</td></tr>`).join('');
+                } else {
+                    table.style.display = 'none';
+                    msg.style.display = 'block';
+                }
+            }
+
+            clearRanking() {
+                if(confirm("Zerar recordes?")) {
+                    localStorage.removeItem('g07_rank');
+                    this.renderRanking();
+                }
+            }
+        }
+
+        const game = new GameEngine();
+    </script>
+</body>
+</html>
