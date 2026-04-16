@@ -40,7 +40,6 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* Sistema de Telas */
         .screen {
             position: absolute;
             top: 0;
@@ -58,12 +57,10 @@
 
         .screen.active { display: flex; }
 
-        /* Backgrounds Únicos por Tela */
         #screen-home { background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('g01-fundo-home.jpg'); }
         #screen-game { background-image: url('g01-fundo.jpg'); background-color: #333; }
         #screen-msg { background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('g01-fundo-final.jpg'); }
 
-        /* UI Jogo */
         #game-header {
             width: 100%;
             background: var(--glass);
@@ -84,7 +81,6 @@
             filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
         }
 
-        /* Ranking na Home */
         #ranking-container {
             background: var(--glass);
             border-radius: 15px;
@@ -108,7 +104,6 @@
             font-size: 0.85rem;
         }
 
-        /* Botões */
         .btn-group {
             display: flex;
             flex-direction: column;
@@ -188,11 +183,13 @@
 const gameEngine = (() => {
     const ASSETS = { bee: 'g01-abelha.jpg', bug: 'g01-besouro.jpg' };
     
-    let state = {
+    // Estado inicial padrão
+    const initialState = {
         score: 0, lives: 3, level: 1, time: 20,
-        isActive: false,
-        ranking: JSON.parse(localStorage.getItem('game_ranking') || '[]')
+        isActive: false
     };
+
+    let state = { ...initialState, ranking: JSON.parse(localStorage.getItem('game_ranking') || '[]') };
 
     let audioCtx = null;
     let gameInterval = null, spawnInterval = null;
@@ -231,14 +228,11 @@ const gameEngine = (() => {
         img.src = isBug ? ASSETS.bug : ASSETS.bee;
         img.className = 'obj';
 
-        // AJUSTE DE TAMANHO ALEATÓRIO (0.5x a 2x)
         const baseSize = 60;
         const size = Math.floor(baseSize * ((Math.random() * 1.5) + 0.5));
         
         img.style.width = size + 'px';
-        img.style.height = 'auto'; // Mantém proporção da imagem
-        
-        // Garante que o objeto não spawne fora da área visível devido ao novo tamanho
+        img.style.height = 'auto';
         img.style.left = Math.random() * (area.clientWidth - size) + 'px';
         img.style.top = Math.random() * (area.clientHeight - size) + 'px';
 
@@ -264,10 +258,16 @@ const gameEngine = (() => {
         document.getElementById('time').textContent = state.time;
     };
 
-    const endGame = (msg) => {
+    const clearGameProcesses = () => {
         state.isActive = false;
         clearInterval(gameInterval);
         clearInterval(spawnInterval);
+        // Remove fisicamente todos os objetos da tela
+        document.getElementById('spawn-area').innerHTML = '';
+    };
+
+    const endGame = (msg) => {
+        clearGameProcesses();
         
         state.ranking.push({ score: state.score, date: new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}) });
         state.ranking.sort((a,b) => b.score - a.score);
@@ -288,7 +288,11 @@ const gameEngine = (() => {
             if (state.time <= 0) {
                 state.level++;
                 if (state.level > 5) endGame('VITÓRIA!');
-                else { clearInterval(gameInterval); clearInterval(spawnInterval); runLevel(); }
+                else { 
+                    clearInterval(gameInterval); 
+                    clearInterval(spawnInterval); 
+                    runLevel(); 
+                }
             }
         }, 1000);
         spawnInterval = setInterval(spawn, Math.max(850 - (state.level * 100), 300));
@@ -297,26 +301,25 @@ const gameEngine = (() => {
     return {
         start: () => {
             initAudio();
-            state = { ...state, score: 0, lives: 3, level: 1, isActive: true };
-            document.getElementById('spawn-area').innerHTML = '';
+            clearGameProcesses(); // Garante limpeza total antes de começar
+            state = { ...state, ...initialState, isActive: true };
+            updateUI();
             showScreen('screen-game');
             runLevel();
         },
         restart: () => gameEngine.start(),
         goToHome: () => {
-            state.isActive = false;
-            clearInterval(gameInterval);
-            clearInterval(spawnInterval);
+            clearGameProcesses(); // Para TUDO antes de mudar a tela
+            // Reseta a UI visualmente para o jogador
+            state.score = 0; state.lives = 3; state.level = 1; state.time = 20;
+            updateUI();
             showScreen('screen-home');
         }
     };
 })();
 
-// Inicializa ranking ao carregar
 window.onload = () => {
-    const r = JSON.parse(localStorage.getItem('game_ranking') || '[]');
-    const list = document.getElementById('home-ranking');
-    list.innerHTML = r.map((r, i) => `<li><span>#${i+1} ${r.date}</span> <b>${r.score}</b></li>`).join('') || '<li style="justify-content:center">Nenhum recorde</li>';
+    gameEngine.goToHome(); // Inicializa limpando tudo
 };
 </script>
 </body>
