@@ -57,9 +57,10 @@
 
         .screen.active { display: flex; }
 
-        #screen-home { background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('g01-fundo-home.jpg'); }
-        #screen-game { background-image: url('g01-fundo.jpg'); background-color: #333; }
-        #screen-msg { background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('g01-fundo-final.jpg'); }
+        /* Fallbacks de fundo caso as imagens não carreguem */
+        #screen-home { background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('assets/g01-fundo-home.jpg'); }
+        #screen-game { background-image: url('assets/g01-fundo.jpg'); background-color: #333; }
+        #screen-msg { background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('assets/g01-fundo-final.jpg'); }
 
         #game-header {
             width: 100%;
@@ -137,7 +138,7 @@
 <div id="viewport">
     
     <div id="screen-home" class="screen active">
-        <h1>🐝 ABELHA vs <br>BESOURO 🪲</h1>
+        <h1 id="game-title">🐝 ABELHA vs <br>BESOURO 🪲</h1>
         
         <div id="ranking-container">
             <h3 style="margin:0 0 10px 0; text-align:center; color: var(--primary)">🏆 TOP 5 RANKING</h3>
@@ -181,18 +182,39 @@
 'use strict';
 
 const gameEngine = (() => {
-    const ASSETS = { bee: 'g01-abelha.jpg', bug: 'g01-besouro.jpg' };
+    // Assets e Regras que virão do JSON
+    let ASSETS = { bee: '', bug: '' };
+    let initialState = { score: 0, lives: 3, level: 1, time: 20, isActive: false };
     
-    // Estado inicial padrão
-    const initialState = {
-        score: 0, lives: 3, level: 1, time: 20,
-        isActive: false
-    };
-
     let state = { ...initialState, ranking: JSON.parse(localStorage.getItem('game_ranking') || '[]') };
-
     let audioCtx = null;
     let gameInterval = null, spawnInterval = null;
+
+    const loadConfig = async () => {
+        try {
+            const response = await fetch('game.json');
+            const config = await response.json();
+            
+            // Mapeia imagens do JSON: assume-se [0] abelha, [1] besouro
+            const path = config.assets.path;
+            ASSETS.bee = path + config.assets.images[0];
+            ASSETS.bug = path + config.assets.images[1];
+            
+            // Sincroniza regras do JSON
+            initialState.lives = config.settings.initial_lives;
+            initialState.time = config.settings.round_duration_seconds;
+            
+            // Atualiza título da Home
+            document.getElementById('game-title').innerText = config.title;
+            
+            return true;
+        } catch (err) {
+            console.error("Erro ao carregar game.json. Verifique se o arquivo existe.", err);
+            // Fallback para não quebrar o jogo
+            ASSETS = { bee: 'assets/g01-abelha.jpg', bug: 'assets/g01-besouro.jpg' };
+            return false;
+        }
+    };
 
     const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
 
@@ -262,25 +284,22 @@ const gameEngine = (() => {
         state.isActive = false;
         clearInterval(gameInterval);
         clearInterval(spawnInterval);
-        // Remove fisicamente todos os objetos da tela
         document.getElementById('spawn-area').innerHTML = '';
     };
 
     const endGame = (msg) => {
         clearGameProcesses();
-        
         state.ranking.push({ score: state.score, date: new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}) });
         state.ranking.sort((a,b) => b.score - a.score);
         state.ranking = state.ranking.slice(0, 5);
         localStorage.setItem('game_ranking', JSON.stringify(state.ranking));
-
         document.getElementById('final-status').textContent = msg;
         document.getElementById('final-score').textContent = state.score;
         showScreen('screen-msg');
     };
 
     const runLevel = () => {
-        state.time = 20;
+        state.time = initialState.time; // Usa o tempo vindo do JSON
         updateUI();
         gameInterval = setInterval(() => {
             state.time--;
@@ -299,9 +318,13 @@ const gameEngine = (() => {
     };
 
     return {
+        init: async () => {
+            await loadConfig();
+            gameEngine.goToHome();
+        },
         start: () => {
             initAudio();
-            clearGameProcesses(); // Garante limpeza total antes de começar
+            clearGameProcesses();
             state = { ...state, ...initialState, isActive: true };
             updateUI();
             showScreen('screen-game');
@@ -309,17 +332,17 @@ const gameEngine = (() => {
         },
         restart: () => gameEngine.start(),
         goToHome: () => {
-            clearGameProcesses(); // Para TUDO antes de mudar a tela
-            // Reseta a UI visualmente para o jogador
-            state.score = 0; state.lives = 3; state.level = 1; state.time = 20;
+            clearGameProcesses();
+            state = { ...state, ...initialState, isActive: false };
             updateUI();
             showScreen('screen-home');
         }
     };
 })();
 
+// Inicialização agora espera o carregamento das configurações
 window.onload = () => {
-    gameEngine.goToHome(); // Inicializa limpando tudo
+    gameEngine.init();
 };
 </script>
 </body>
