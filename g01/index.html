@@ -1,210 +1,275 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jogo Abelha vs Besouro</title>
-<style>
-body {
-  margin: 0;
-  font-family: Arial;
-  text-align: center;
-  background: #222;
-  color: white;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abelha vs Besouro - Senior Edition</title>
+    <style>
+        :root {
+            --primary: #f1c40f;
+            --danger: #e74c3c;
+            --bg-dark: #1a1a1a;
+        }
 
-#gameArea {
-  position: relative;
-  width: 100%;
-  height: 70vh;
-  overflow: hidden;
-  background-size: cover;
-}
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
 
-.obj {
-  position: absolute;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
+        /* Container de Jogo */
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 70vh;
+            background: #333 url('g01-fundo.jpg') center/cover;
+            border: 2px solid #444;
+            margin-top: 10px;
+            overflow: hidden;
+        }
 
-.obj:active {
-  transform: scale(0.8);
-}
+        /* Telas Sobrepostas */
+        .screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+        }
 
-#ui {
-  padding: 10px;
-}
+        .screen.active { display: flex; }
 
-button {
-  padding: 10px;
-  margin: 5px;
-}
+        /* Elementos de Jogo */
+        .obj {
+            position: absolute;
+            cursor: pointer;
+            will-change: transform;
+            transition: transform 0.1s;
+            z-index: 5;
+        }
 
-.hidden {
-  display: none;
-}
-</style>
+        #header-ui {
+            padding: 15px;
+            background: #222;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            font-weight: bold;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .controls-row {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: var(--primary);
+            color: black;
+            font-weight: bold;
+        }
+
+        button:active { transform: scale(0.95); }
+        .btn-secondary { background: #95a5a6; color: white; }
+
+        #ranking-list {
+            list-style: none;
+            padding: 0;
+            width: 250px;
+        }
+
+        #ranking-list li {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
 </head>
-
 <body>
 
-<h2>🐝 Abelha vs Besouro 🪲</h2>
-
-<div id="setup">
-  <p>Escolha as imagens:</p>
-  Fundo: <input type="file" id="bgInput"><br>
-  Abelha: <input type="file" id="beeInput"><br>
-  Besouro: <input type="file" id="bugInput"><br><br>
-  <button onclick="startGame()">Iniciar Jogo</button>
+<div id="header-ui">
+    <div>🍎 Vidas: <span id="lives">3</span></div>
+    <div>⭐ Score: <span id="score">0</span></div>
+    <div>🆙 Fase: <span id="level">1</span></div>
+    <div>⏳ Tempo: <span id="time">20</span></div>
 </div>
 
-<div id="ui" class="hidden">
-  <p>Pontos: <span id="score">0</span> | Vidas: <span id="lives">3</span> | Fase: <span id="level">1</span> | Tempo: <span id="time">20</span></p>
+<div id="gameContainer">
+    <div id="screen-home" class="screen active">
+        <h1>🐝 Abelha vs Besouro 🪲</h1>
+        <div class="controls-row">
+            <button onclick="gameEngine.start()">Iniciar Jogo</button>
+            <button class="btn-secondary" onclick="gameEngine.showRanking()">Ranking</button>
+        </div>
+    </div>
+
+    <div id="screen-ranking" class="screen">
+        <h2>🏆 Melhores Pontuações</h2>
+        <ul id="ranking-list"></ul>
+        <button onclick="gameEngine.goToHome()">Voltar</button>
+    </div>
+
+    <div id="screen-msg" class="screen">
+        <h2 id="final-status">Game Over</h2>
+        <p>Pontuação: <span id="final-score">0</span></p>
+        <button onclick="gameEngine.start()">Tentar Novamente</button>
+        <button class="btn-secondary" onclick="gameEngine.goToHome()" style="margin-top:10px">Menu</button>
+    </div>
 </div>
 
-<div id="gameArea"></div>
-
-<div id="message"></div>
+<div class="controls-row">
+    <button class="btn-secondary" onclick="gameEngine.goToHome()">Home</button>
+    <button onclick="gameEngine.restart()">Reiniciar</button>
+</div>
 
 <script>
-let bgImg, beeImg, bugImg;
-let score = 0;
-let lives = 3;
-let level = 1;
-let time = 20;
-let gameInterval;
-let spawnInterval;
+'use strict';
 
-function loadImage(input, callback) {
-  const file = input.files[0];
-  const reader = new FileReader();
-  reader.onload = e => callback(e.target.result);
-  reader.readAsDataURL(file);
-}
+const gameEngine = (() => {
+    const ASSETS = { bee: 'g01-abelha.jpg', bug: 'g01-besouro.jpg' };
+    
+    let state = {
+        score: 0, lives: 3, level: 1, time: 20,
+        isActive: false,
+        ranking: JSON.parse(localStorage.getItem('game_ranking') || '[]')
+    };
 
-function startGame() {
-  loadImage(bgInput, img => {
-    bgImg = img;
-    loadImage(beeInput, img2 => {
-      beeImg = img2;
-      loadImage(bugInput, img3 => {
-        bugImg = img3;
+    let audioCtx = null;
+    let gameInterval = null;
+    let spawnInterval = null;
 
-        document.getElementById("setup").classList.add("hidden");
-        document.getElementById("ui").classList.remove("hidden");
+    const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
 
-        nextLevel();
-      });
-    });
-  });
-}
+    const playTone = (freq) => {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.1);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    };
 
-function nextLevel() {
-  document.getElementById("message").innerHTML = "Fase " + level;
-  setTimeout(() => {
-    document.getElementById("message").innerHTML = "";
-    startLevel();
-  }, 1500);
-}
+    const showScreen = (id) => {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(id);
+        if (target) target.classList.add('active'); // Correção do erro de null
+    };
 
-function startLevel() {
-  const gameArea = document.getElementById("gameArea");
-  gameArea.style.backgroundImage = `url(${bgImg})`;
+    const updateUI = () => {
+        document.getElementById('score').textContent = state.score;
+        document.getElementById('lives').textContent = state.lives;
+        document.getElementById('level').textContent = state.level;
+        document.getElementById('time').textContent = state.time;
+    };
 
-  time = 20;
-  updateUI();
+    const spawn = () => {
+        if (!state.isActive) return;
+        const container = document.getElementById('gameContainer');
+        const isBug = Math.random() > 0.5;
+        const img = document.createElement('img');
+        
+        img.src = isBug ? ASSETS.bug : ASSETS.bee;
+        img.className = 'obj';
+        const size = 60;
+        img.style.width = size + 'px';
+        img.style.left = Math.random() * (container.clientWidth - size) + 'px';
+        img.style.top = Math.random() * (container.clientHeight - size) + 'px';
 
-  gameInterval = setInterval(() => {
-    time--;
-    updateUI();
-    if (time <= 0) {
-      clearInterval(gameInterval);
-      clearInterval(spawnInterval);
-      level++;
-      if (level > 5) {
-        endGame("Você venceu!");
-      } else {
-        nextLevel();
-      }
-    }
-  }, 1000);
+        const removeObj = () => { if (img.parentNode) container.removeChild(img); };
 
-  spawnInterval = setInterval(spawnObject, Math.max(800 - level * 100, 300));
-}
+        img.onclick = (e) => {
+            e.stopPropagation();
+            if (isBug) { state.score += 2; playTone(600); }
+            else { state.lives--; state.score = Math.max(0, state.score - 1); playTone(200); }
+            updateUI();
+            removeObj();
+            if (state.lives <= 0) endGame('Game Over');
+        };
 
-function spawnObject() {
-  const gameArea = document.getElementById("gameArea");
+        container.appendChild(img);
+        setTimeout(removeObj, Math.max(2000 - (state.level * 200), 800));
+    };
 
-  let obj = document.createElement("img");
-  obj.classList.add("obj");
+    const endGame = (msg) => {
+        state.isActive = false;
+        clearInterval(gameInterval);
+        clearInterval(spawnInterval);
+        
+        state.ranking.push({ score: state.score, date: new Date().toLocaleDateString() });
+        state.ranking.sort((a,b) => b.score - a.score);
+        state.ranking = state.ranking.slice(0, 5);
+        localStorage.setItem('game_ranking', JSON.stringify(state.ranking));
 
-  let isBug = Math.random() > 0.5;
-  obj.src = isBug ? bugImg : beeImg;
+        document.getElementById('final-status').textContent = msg;
+        document.getElementById('final-score').textContent = state.score;
+        showScreen('screen-msg');
+    };
 
-  let size = Math.random() * 60 + 40;
-  obj.style.width = size + "px";
+    const runLevel = () => {
+        clearInterval(gameInterval);
+        clearInterval(spawnInterval);
+        state.time = 20;
+        updateUI();
 
-  let x = Math.random() * (gameArea.clientWidth - size);
-  let y = Math.random() * (gameArea.clientHeight - size);
+        gameInterval = setInterval(() => {
+            state.time--;
+            updateUI();
+            if (state.time <= 0) {
+                state.level++;
+                if (state.level > 5) endGame('Vitória!');
+                else runLevel();
+            }
+        }, 1000);
 
-  obj.style.left = x + "px";
-  obj.style.top = y + "px";
+        spawnInterval = setInterval(spawn, Math.max(800 - (state.level * 100), 300));
+    };
 
-  obj.onclick = () => {
-    if (isBug) {
-      score += 2;
-      playSound(600);
-    } else {
-      score -= 1;
-      lives--;
-      playSound(200);
-    }
-
-    animateClick(obj);
-    updateUI();
-
-    if (lives <= 0) {
-      endGame("Game Over");
-    }
-
-    obj.remove();
-  };
-
-  gameArea.appendChild(obj);
-
-  setTimeout(() => {
-    obj.remove();
-  }, Math.max(2000 - level * 200, 800));
-}
-
-function animateClick(obj) {
-  obj.style.transform = "scale(1.5)";
-  obj.style.opacity = "0";
-}
-
-function updateUI() {
-  document.getElementById("score").innerText = score;
-  document.getElementById("lives").innerText = lives;
-  document.getElementById("level").innerText = level;
-  document.getElementById("time").innerText = time;
-}
-
-function endGame(msg) {
-  clearInterval(gameInterval);
-  clearInterval(spawnInterval);
-  document.getElementById("message").innerHTML = msg + "<br><button onclick='location.reload()'>Reiniciar</button>";
-}
-
-function playSound(freq) {
-  let ctx = new (window.AudioContext || window.webkitAudioContext)();
-  let osc = ctx.createOscillator();
-  osc.type = "square";
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
-  osc.connect(ctx.destination);
-  osc.start();
-  setTimeout(() => osc.stop(), 100);
-}
+    return {
+        start: () => {
+            initAudio();
+            state = { ...state, score: 0, lives: 3, level: 1, isActive: true };
+            document.querySelectorAll('.obj').forEach(o => o.remove());
+            showScreen('none'); // Agora seguro
+            runLevel();
+        },
+        restart: () => gameEngine.start(),
+        goToHome: () => {
+            state.isActive = false;
+            clearInterval(gameInterval);
+            clearInterval(spawnInterval);
+            document.querySelectorAll('.obj').forEach(o => o.remove());
+            showScreen('screen-home');
+        },
+        showRanking: () => {
+            const list = document.getElementById('ranking-list');
+            list.innerHTML = state.ranking.map(r => `<li>${r.date} <b>${r.score}pts</b></li>`).join('') || 'Sem recordes';
+            showScreen('screen-ranking');
+        }
+    };
+})();
 </script>
-
 </body>
 </html>
