@@ -3,145 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abelha vs Besouro - Senior Edition</title>
+    <title>Abelha vs Besouro - Mobile Edition</title>
     <style>
         :root {
             --primary: #f1c40f;
-            --danger: #e74c3c;
-            --bg-dark: #1a1a1a;
+            --accent: #3498db;
+            --bg-dark: #121212;
+            --glass: rgba(0, 0, 0, 0.7);
         }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg-dark);
+            padding: 0;
+            background: #000;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             color: white;
-            overflow: hidden;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
             height: 100vh;
+            overflow: hidden;
             user-select: none;
         }
 
-        /* Container de Jogo */
-        #gameContainer {
+        /* Container 9:16 (Mobile Viewport) */
+        #viewport {
             position: relative;
-            width: 100%;
-            max-width: 800px;
-            height: 70vh;
-            background: #333 url('g01-fundo.jpg') center/cover;
-            border: 2px solid #444;
-            margin-top: 10px;
+            width: 100vw;
+            height: calc(100vw * 16 / 9);
+            max-width: 450px;
+            max-height: 800px;
+            background: #222;
             overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* Telas Sobrepostas */
+        /* Sistema de Telas */
         .screen {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+            padding: 20px;
+            background-size: cover;
+            background-position: center;
         }
 
         .screen.active { display: flex; }
 
-        /* Elementos de Jogo */
+        /* Backgrounds Únicos por Tela */
+        #screen-home { background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('g01-fundo-home.jpg'); }
+        #screen-game { background-image: url('g01-fundo.jpg'); background-color: #333; }
+        #screen-msg { background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('g01-fundo-final.jpg'); }
+
+        /* UI Jogo */
+        #game-header {
+            width: 100%;
+            background: var(--glass);
+            padding: 15px 10px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            border-bottom: 2px solid var(--primary);
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
         .obj {
             position: absolute;
             cursor: pointer;
             will-change: transform;
-            transition: transform 0.1s;
             z-index: 5;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
         }
 
-        #header-ui {
+        /* Ranking na Home */
+        #ranking-container {
+            background: var(--glass);
+            border-radius: 15px;
+            width: 90%;
             padding: 15px;
-            background: #222;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-            font-weight: bold;
-            border-bottom: 2px solid var(--primary);
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .controls-row {
-            margin-top: 10px;
+        .ranking-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .ranking-list li {
             display: flex;
-            gap: 10px;
-            z-index: 10;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.85rem;
+        }
+
+        /* Botões */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 80%;
+            margin-top: auto;
+            margin-bottom: 40px;
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 1rem;
-            cursor: pointer;
+            padding: 16px;
             border: none;
-            border-radius: 5px;
+            border-radius: 12px;
             background: var(--primary);
-            color: black;
-            font-weight: bold;
+            color: #000;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 0.2s;
         }
 
         button:active { transform: scale(0.95); }
-        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-sec { background: #95a5a6; color: white; }
 
-        #ranking-list {
-            list-style: none;
-            padding: 0;
-            width: 250px;
-        }
-
-        #ranking-list li {
-            padding: 10px;
-            border-bottom: 1px solid #444;
-            display: flex;
-            justify-content: space-between;
-        }
+        h1 { font-size: 1.8rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="header-ui">
-    <div>🍎 Vidas: <span id="lives">3</span></div>
-    <div>⭐ Score: <span id="score">0</span></div>
-    <div>🆙 Fase: <span id="level">1</span></div>
-    <div>⏳ Tempo: <span id="time">20</span></div>
-</div>
-
-<div id="gameContainer">
+<div id="viewport">
+    
     <div id="screen-home" class="screen active">
-        <h1>🐝 Abelha vs Besouro 🪲</h1>
-        <div class="controls-row">
-            <button onclick="gameEngine.start()">Iniciar Jogo</button>
-            <button class="btn-secondary" onclick="gameEngine.showRanking()">Ranking</button>
+        <h1>🐝 ABELHA vs <br>BESOURO 🪲</h1>
+        
+        <div id="ranking-container">
+            <h3 style="margin:0 0 10px 0; text-align:center; color: var(--primary)">🏆 TOP 5 RANKING</h3>
+            <ul id="home-ranking" class="ranking-list"></ul>
+        </div>
+
+        <div class="btn-group">
+            <button onclick="gameEngine.start()">Iniciar Partida</button>
         </div>
     </div>
 
-    <div id="screen-ranking" class="screen">
-        <h2>🏆 Melhores Pontuações</h2>
-        <ul id="ranking-list"></ul>
-        <button onclick="gameEngine.goToHome()">Voltar</button>
+    <div id="screen-game" class="screen">
+        <div id="game-header">
+            <div>🍎 Vidas: <span id="lives">3</span></div>
+            <div>⭐ Score: <span id="score">0</span></div>
+            <div>🆙 Fase: <span id="level">1</span></div>
+            <div>⏳ Tempo: <span id="time">20</span></div>
+        </div>
+        
+        <div id="spawn-area" style="position:relative; width:100%; flex-grow:1;"></div>
+
+        <div class="btn-group" style="flex-direction: row; margin-bottom: 20px;">
+            <button class="btn-sec" style="flex:1" onclick="gameEngine.goToHome()">Home</button>
+            <button style="flex:1" onclick="gameEngine.restart()">Reset</button>
+        </div>
     </div>
 
     <div id="screen-msg" class="screen">
-        <h2 id="final-status">Game Over</h2>
-        <p>Pontuação: <span id="final-score">0</span></p>
-        <button onclick="gameEngine.start()">Tentar Novamente</button>
-        <button class="btn-secondary" onclick="gameEngine.goToHome()" style="margin-top:10px">Menu</button>
+        <h2 id="final-status" style="font-size: 2.5rem; margin-top: 60px;">FIM</h2>
+        <p style="font-size: 1.2rem;">Pontuação: <b id="final-score" style="color:var(--primary)">0</b></p>
+        
+        <div class="btn-group">
+            <button onclick="gameEngine.start()">Jogar Novamente</button>
+            <button class="btn-sec" onclick="gameEngine.goToHome()">Menu Principal</button>
+        </div>
     </div>
-</div>
 
-<div class="controls-row">
-    <button class="btn-secondary" onclick="gameEngine.goToHome()">Home</button>
-    <button onclick="gameEngine.restart()">Reiniciar</button>
 </div>
 
 <script>
@@ -157,8 +195,7 @@ const gameEngine = (() => {
     };
 
     let audioCtx = null;
-    let gameInterval = null;
-    let spawnInterval = null;
+    let gameInterval = null, spawnInterval = null;
 
     const initAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
 
@@ -174,8 +211,50 @@ const gameEngine = (() => {
 
     const showScreen = (id) => {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        const target = document.getElementById(id);
-        if (target) target.classList.add('active'); // Correção do erro de null
+        document.getElementById(id).classList.add('active');
+        if(id === 'screen-home') renderRanking();
+    };
+
+    const renderRanking = () => {
+        const list = document.getElementById('home-ranking');
+        list.innerHTML = state.ranking.length > 0 
+            ? state.ranking.map((r, i) => `<li><span>#${i+1} ${r.date}</span> <b>${r.score}</b></li>`).join('')
+            : '<li style="justify-content:center">Nenhum recorde ainda</li>';
+    };
+
+    const spawn = () => {
+        if (!state.isActive) return;
+        const area = document.getElementById('spawn-area');
+        const isBug = Math.random() > 0.5;
+        const img = document.createElement('img');
+        
+        img.src = isBug ? ASSETS.bug : ASSETS.bee;
+        img.className = 'obj';
+
+        // AJUSTE DE TAMANHO ALEATÓRIO (0.5x a 2x)
+        const baseSize = 60;
+        const size = Math.floor(baseSize * ((Math.random() * 1.5) + 0.5));
+        
+        img.style.width = size + 'px';
+        img.style.height = 'auto'; // Mantém proporção da imagem
+        
+        // Garante que o objeto não spawne fora da área visível devido ao novo tamanho
+        img.style.left = Math.random() * (area.clientWidth - size) + 'px';
+        img.style.top = Math.random() * (area.clientHeight - size) + 'px';
+
+        const removeObj = () => { if (img.parentNode) area.removeChild(img); };
+
+        img.onclick = (e) => {
+            e.stopPropagation();
+            if (isBug) { state.score += 2; playTone(600); }
+            else { state.lives--; state.score = Math.max(0, state.score - 1); playTone(200); }
+            updateUI();
+            removeObj();
+            if (state.lives <= 0) endGame('GAME OVER');
+        };
+
+        area.appendChild(img);
+        setTimeout(removeObj, Math.max(1800 - (state.level * 200), 700));
     };
 
     const updateUI = () => {
@@ -185,40 +264,12 @@ const gameEngine = (() => {
         document.getElementById('time').textContent = state.time;
     };
 
-    const spawn = () => {
-        if (!state.isActive) return;
-        const container = document.getElementById('gameContainer');
-        const isBug = Math.random() > 0.5;
-        const img = document.createElement('img');
-        
-        img.src = isBug ? ASSETS.bug : ASSETS.bee;
-        img.className = 'obj';
-        const size = 60;
-        img.style.width = size + 'px';
-        img.style.left = Math.random() * (container.clientWidth - size) + 'px';
-        img.style.top = Math.random() * (container.clientHeight - size) + 'px';
-
-        const removeObj = () => { if (img.parentNode) container.removeChild(img); };
-
-        img.onclick = (e) => {
-            e.stopPropagation();
-            if (isBug) { state.score += 2; playTone(600); }
-            else { state.lives--; state.score = Math.max(0, state.score - 1); playTone(200); }
-            updateUI();
-            removeObj();
-            if (state.lives <= 0) endGame('Game Over');
-        };
-
-        container.appendChild(img);
-        setTimeout(removeObj, Math.max(2000 - (state.level * 200), 800));
-    };
-
     const endGame = (msg) => {
         state.isActive = false;
         clearInterval(gameInterval);
         clearInterval(spawnInterval);
         
-        state.ranking.push({ score: state.score, date: new Date().toLocaleDateString() });
+        state.ranking.push({ score: state.score, date: new Date().toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}) });
         state.ranking.sort((a,b) => b.score - a.score);
         state.ranking = state.ranking.slice(0, 5);
         localStorage.setItem('game_ranking', JSON.stringify(state.ranking));
@@ -229,30 +280,26 @@ const gameEngine = (() => {
     };
 
     const runLevel = () => {
-        clearInterval(gameInterval);
-        clearInterval(spawnInterval);
         state.time = 20;
         updateUI();
-
         gameInterval = setInterval(() => {
             state.time--;
             updateUI();
             if (state.time <= 0) {
                 state.level++;
-                if (state.level > 5) endGame('Vitória!');
-                else runLevel();
+                if (state.level > 5) endGame('VITÓRIA!');
+                else { clearInterval(gameInterval); clearInterval(spawnInterval); runLevel(); }
             }
         }, 1000);
-
-        spawnInterval = setInterval(spawn, Math.max(800 - (state.level * 100), 300));
+        spawnInterval = setInterval(spawn, Math.max(850 - (state.level * 100), 300));
     };
 
     return {
         start: () => {
             initAudio();
             state = { ...state, score: 0, lives: 3, level: 1, isActive: true };
-            document.querySelectorAll('.obj').forEach(o => o.remove());
-            showScreen('none'); // Agora seguro
+            document.getElementById('spawn-area').innerHTML = '';
+            showScreen('screen-game');
             runLevel();
         },
         restart: () => gameEngine.start(),
@@ -260,16 +307,17 @@ const gameEngine = (() => {
             state.isActive = false;
             clearInterval(gameInterval);
             clearInterval(spawnInterval);
-            document.querySelectorAll('.obj').forEach(o => o.remove());
             showScreen('screen-home');
-        },
-        showRanking: () => {
-            const list = document.getElementById('ranking-list');
-            list.innerHTML = state.ranking.map(r => `<li>${r.date} <b>${r.score}pts</b></li>`).join('') || 'Sem recordes';
-            showScreen('screen-ranking');
         }
     };
 })();
+
+// Inicializa ranking ao carregar
+window.onload = () => {
+    const r = JSON.parse(localStorage.getItem('game_ranking') || '[]');
+    const list = document.getElementById('home-ranking');
+    list.innerHTML = r.map((r, i) => `<li><span>#${i+1} ${r.date}</span> <b>${r.score}</b></li>`).join('') || '<li style="justify-content:center">Nenhum recorde</li>';
+};
 </script>
 </body>
 </html>
