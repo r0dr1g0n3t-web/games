@@ -1,0 +1,25 @@
+name: Update Game Database
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'g*/**' # Only runs when files in g-folders change
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Run Scanner
+        run: python scanner.py
+      - name: Commit Database
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add database.json
+          git diff-index --quiet HEAD || git commit -m "Update database.json"
+          git push

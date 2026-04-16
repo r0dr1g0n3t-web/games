@@ -1,360 +1,135 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gravity Match Pro v0.8.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Game Arcade</title>
     <style>
         :root {
-            --primary: #6c5ce7; --accent: #ff7675; --success: #00b894;
-            --bg: #1a1a2e; --glass: rgba(255, 255, 255, 0.1);
-            --card-size: 75px; --gap: 10px;
+            --bg: #f5f5f7;
+            --card-bg: #ffffff;
+            --text-main: #1d1d1f;
+            --text-sub: #86868b;
+            --accent: #0071e3;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
-        
         body {
-            margin: 0; height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif;
-            background: radial-gradient(circle at center, #1e3799, #1a1a2e);
-            color: white; overflow: hidden; display: flex; justify-content: center; align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0; padding: 20px;
         }
 
-        /* Estrutura de Telas */
-        .screen {
-            position: absolute; inset: 0; display: none;
-            flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px; transition: opacity 0.3s;
-        }
-        .active-screen { display: flex !important; }
+        header { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        h1 { font-size: 40px; font-weight: 700; letter-spacing: -1px; }
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px;
-            padding: 30px; width: 100%; max-width: 400px; text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        }
-
-        /* Game Board */
-        #game-board {
-            position: relative; 
-            width: calc((var(--card-size) * 4) + (var(--gap) * 3));
-            height: calc((var(--card-size) * 4) + (var(--gap) * 3));
-            margin: 20px auto;
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .card {
-            position: absolute; width: var(--card-size); height: var(--card-size);
-            cursor: pointer; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform-style: preserve-3d;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
         }
 
-        .card.flipped { transform: rotateY(180deg); }
-        .card.hidden { transform: scale(0); opacity: 0; pointer-events: none; }
+        .card:hover { transform: scale(1.02); }
 
-        .card-face {
-            position: absolute; width: 100%; height: 100%;
-            backface-visibility: hidden; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; border: 2px solid rgba(255,255,255,0.2);
+        .icon {
+            width: 80px; height: 80px;
+            border-radius: 18px;
+            object-fit: cover;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        .card-front { background: #fff; transform: rotateY(180deg); color: #000; }
-        .card-back { background: var(--primary); background-size: cover; }
+        .info { flex: 1; }
+        .info h3 { margin: 0; font-size: 18px; }
+        .info p { margin: 4px 0; font-size: 14px; color: var(--text-sub); }
 
-        /* HUD & UI Elements */
-        .hud {
-            display: flex; justify-content: space-between; align-items: center;
-            width: 100%; max-width: 340px; margin-bottom: 15px;
-            background: var(--glass); padding: 10px 20px; border-radius: 50px;
+        .actions { display: flex; flex-direction: column; gap: 8px; }
+
+        .btn-play {
+            background: var(--bg);
+            color: var(--accent);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
         }
 
-        .shuffle-progress {
-            width: 100%; max-width: 340px; height: 6px;
-            background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 15px; overflow: hidden;
-        }
-        #shuffle-bar { height: 100%; width: 100%; background: var(--accent); transition: width 0.1s linear; }
-
-        button {
-            background: var(--accent); color: white; border: none; padding: 12px 24px;
-            border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;
-            width: 100%; margin: 8px 0;
-        }
-        button:active { transform: scale(0.95); }
-        .btn-secondary { background: #4b4b4b; }
-
-        input[type="number"], input[type="file"] {
-            width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: none;
+        .btn-share {
+            background: transparent;
+            color: var(--text-sub);
+            border: none;
+            font-size: 12px;
+            cursor: pointer;
         }
 
-        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
-        th, td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-
-        /* Animations */
-        @keyframes storm-effect {
-            0% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(0.8) rotate(180deg); filter: hue-rotate(90deg); }
-            100% { transform: scale(1) rotate(360deg); }
-        }
-        .storming { animation: storm-effect 0.8s ease-in-out; }
+        /* Shimmer Loading Animation */
+        .skeleton { height: 120px; background: #eee; border-radius: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="screen-menu" class="screen active-screen">
-        <div class="glass-panel">
-            <h1>Gravity Match</h1>
-            <button onclick="app.startGame()">JOGAR</button>
-            <button onclick="app.showScreen('screen-config')" class="btn-secondary">AJUSTES</button>
-            <div id="ranking-container">
-                <h3>🏆 Melhores Tempos</h3>
-                <table><tbody id="ranking-body"></tbody></table>
-            </div>
-        </div>
-    </div>
+<header>
+    <h1>Arcade</h1>
+</header>
 
-    <div id="screen-config" class="screen">
-        <div class="glass-panel">
-            <h2>Ajustes</h2>
-            <label>Memorização (ms)</label>
-            <input id="cfg-memo" type="number" value="3000">
-            <label>Tempo Shuffle (ms)</label>
-            <input id="cfg-shf" type="number" value="10000">
-            
-            <button onclick="app.saveSettings()">SALVAR</button>
-            <button onclick="app.showScreen('screen-menu')" class="btn-secondary">VOLTAR</button>
-        </div>
-    </div>
+<div class="grid" id="game-grid">
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+</div>
 
-    <div id="screen-game" class="screen">
-        <div class="hud">
-            <span>⏱️ <b id="timer">0.00</b>s</span>
-            <button onclick="app.startGame()" style="width: auto; padding: 5px 15px;">🔄</button>
-        </div>
+<script>
+    async function loadGames() {
+        try {
+            const response = await fetch('./database.json');
+            const games = await response.json();
+            const grid = document.getElementById('game-grid');
+            grid.innerHTML = '';
 
-        <div id="game-board"></div>
-
-        <div class="shuffle-progress">
-            <div id="shuffle-bar"></div>
-        </div>
-    </div>
-
-    <div id="screen-victory" class="screen">
-        <div class="glass-panel">
-            <h1 style="color: var(--success)">VITÓRIA!</h1>
-            <p>Seu tempo: <span id="final-time"></span></p>
-            <button onclick="app.startGame()">JOGAR NOVAMENTE</button>
-            <button onclick="app.showScreen('screen-menu')" class="btn-secondary">MENU</button>
-        </div>
-    </div>
-
-    <script>
-        const EMOJIS = ['🍎', '💎', '🦊', '🚀', '🌈', '👻', '🍕', '🎸'];
-
-        class GameEngine {
-            constructor() {
-                this.config = JSON.parse(localStorage.getItem('gm_pro_cfg')) || {
-                    memoTime: 3000,
-                    shuffleTime: 12000
-                };
-                this.ranking = JSON.parse(localStorage.getItem('gm_pro_rank')) || [];
-                this.state = {
-                    cards: [], flipped: [], isLocked: true, 
-                    startTime: 0, timerId: null, shuffleProgress: 0
-                };
-                this.init();
-            }
-
-            init() {
-                document.getElementById('cfg-memo').value = this.config.memoTime;
-                document.getElementById('cfg-shf').value = this.config.shuffleTime;
-                this.renderRanking();
-            }
-
-            showScreen(id) {
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
-                document.getElementById(id).classList.add('active-screen');
-                if(id === 'screen-menu') this.renderRanking();
-            }
-
-            saveSettings() {
-                this.config.memoTime = parseInt(document.getElementById('cfg-memo').value);
-                this.config.shuffleTime = parseInt(document.getElementById('cfg-shf').value);
-                localStorage.setItem('gm_pro_cfg', JSON.stringify(this.config));
-                this.showScreen('screen-menu');
-            }
-
-            startGame() {
-                this.state = { ...this.state, cards: [], flipped: [], isLocked: true, startTime: Date.now() };
-                const board = document.getElementById('game-board');
-                board.innerHTML = '';
-                
-                // Gerar pares
-                let types = [...Array(8).keys()].flatMap(i => [i, i]).sort(() => Math.random() - 0.5);
-                
-                types.forEach((type, i) => {
-                    const card = this.createCardElement(type, i);
-                    board.appendChild(card.el);
-                    this.state.cards.push(card);
-                });
-
-                this.showScreen('screen-game');
-                this.revealAll(true);
-
-                setTimeout(() => {
-                    this.revealAll(false);
-                    this.state.isLocked = false;
-                    this.state.startTime = Date.now();
-                    this.startLoops();
-                }, this.config.memoTime);
-            }
-
-            createCardElement(type, id) {
-                const el = document.createElement('div');
-                el.className = 'card';
-                el.innerHTML = `
-                    <div class="card-face card-front">${EMOJIS[type]}</div>
-                    <div class="card-face card-back"></div>
+            games.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${game.icon}" class="icon" onerror="this.src='https://via.placeholder.com/80?text=App'">
+                    <div class="info">
+                        <h3>${game.title}</h3>
+                        <p>${game.category}</p>
+                    </div>
+                    <div class="actions">
+                        <a href="${game.path}" class="btn-play">GET</a>
+                        <button class="btn-share" onclick="shareGame('${game.title}', '${window.location.href}${game.id}')">Share</button>
+                    </div>
                 `;
-                
-                const cardObj = { 
-                    id, type, el, 
-                    active: true, 
-                    gridX: id % 4, 
-                    gridY: Math.floor(id / 4) 
-                };
-
-                el.onclick = () => this.handleFlip(cardObj);
-                this.updateCardPosition(cardObj);
-                return cardObj;
-            }
-
-            updateCardPosition(card) {
-                const step = 75 + 10; // size + gap
-                card.el.style.left = `${card.gridX * step}px`;
-                card.el.style.top = `${card.gridY * step}px`;
-            }
-
-            revealAll(show) {
-                this.state.cards.forEach(c => show ? c.el.classList.add('flipped') : c.el.classList.remove('flipped'));
-            }
-
-            handleFlip(card) {
-                if (this.state.isLocked || !card.active || this.state.flipped.includes(card)) return;
-
-                card.el.classList.add('flipped');
-                this.state.flipped.push(card);
-
-                if (this.state.flipped.length === 2) {
-                    this.checkMatch();
-                }
-            }
-
-            checkMatch() {
-                this.state.isLocked = true;
-                const [c1, c2] = this.state.flipped;
-
-                if (c1.type === c2.type) {
-                    setTimeout(() => {
-                        c1.active = c2.active = false;
-                        c1.el.classList.add('hidden');
-                        c2.el.classList.add('hidden');
-                        this.applyGravity();
-                        this.state.flipped = [];
-                        this.state.isLocked = false;
-                        this.checkWin();
-                    }, 500);
-                } else {
-                    setTimeout(() => {
-                        c1.el.classList.remove('flipped');
-                        c2.el.classList.remove('flipped');
-                        this.state.flipped = [];
-                        this.state.isLocked = false;
-                    }, 800);
-                }
-            }
-
-            applyGravity() {
-                for (let x = 0; x < 4; x++) {
-                    let column = this.state.cards
-                        .filter(c => c.gridX === x && c.active)
-                        .sort((a, b) => b.gridY - a.gridY);
-                    
-                    column.forEach((card, index) => {
-                        card.gridY = 3 - index;
-                        this.updateCardPosition(card);
-                    });
-                }
-            }
-
-            triggerStorm() {
-                this.state.isLocked = true;
-                const boardEl = document.getElementById('game-board');
-                boardEl.classList.add('storming');
-
-                setTimeout(() => {
-                    // Embaralhar posições dos ativos
-                    let activeCards = this.state.cards.filter(c => c.active);
-                    let positions = activeCards.map(c => ({x: c.gridX, y: c.gridY})).sort(() => Math.random() - 0.5);
-                    
-                    activeCards.forEach((c, i) => {
-                        c.gridX = positions[i].x;
-                        c.gridY = positions[i].y;
-                        this.updateCardPosition(c);
-                    });
-
-                    boardEl.classList.remove('storming');
-                    this.state.isLocked = false;
-                }, 800);
-            }
-
-            startLoops() {
-                if(this.state.timerId) clearInterval(this.state.timerId);
-                
-                const stormTick = 100;
-                let stormAccumulator = 0;
-
-                this.state.timerId = setInterval(() => {
-                    // Update Timer
-                    const elapsed = (Date.now() - this.state.startTime) / 1000;
-                    document.getElementById('timer').textContent = elapsed.toFixed(2);
-
-                    // Update Shuffle Bar
-                    stormAccumulator += stormTick;
-                    const progress = 100 - ((stormAccumulator % this.config.shuffleTime) / this.config.shuffleTime * 100);
-                    document.getElementById('shuffle-bar').style.width = `${progress}%`;
-
-                    if(stormAccumulator % this.config.shuffleTime < stormTick) {
-                        this.triggerStorm();
-                    }
-                }, stormTick);
-            }
-
-            checkWin() {
-                if (this.state.cards.every(c => !c.active)) {
-                    clearInterval(this.state.timerId);
-                    const finalTime = (Date.now() - this.state.startTime) / 1000;
-                    document.getElementById('final-time').textContent = `${finalTime.toFixed(2)}s`;
-                    this.saveScore(finalTime.toFixed(2));
-                    this.showScreen('screen-victory');
-                }
-            }
-
-            saveScore(time) {
-                this.ranking.push(time);
-                this.ranking.sort((a, b) => a - b);
-                this.ranking = this.ranking.slice(0, 5);
-                localStorage.setItem('gm_pro_rank', JSON.stringify(this.ranking));
-            }
-
-            renderRanking() {
-                const body = document.getElementById('ranking-body');
-                body.innerHTML = this.ranking.length 
-                    ? this.ranking.map((t, i) => `<tr><td>#${i+1}</td><td>${t}s</td></tr>`).join('')
-                    : '<tr><td colspan="2">Nenhum recorde</td></tr>';
-            }
+                grid.appendChild(card);
+            });
+        } catch (e) {
+            console.error("Error loading games list.", e);
         }
+    }
 
-        const app = new GameEngine();
-    </script>
+    function shareGame(title, url) {
+        if (navigator.share) {
+            navigator.share({ title: title, url: url });
+        } else {
+            alert("Link copied: " + url);
+        }
+    }
+
+    loadGames();
+</script>
 </body>
 </html>
