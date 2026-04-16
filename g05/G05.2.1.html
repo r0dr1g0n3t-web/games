@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Robin H.old v2.2 - Egg Edition</title>
+    <style>
+        :root {
+            --pixel: 4px; --bg: #1a1a1a; --primary: #27ae60;
+            --danger: #e74c3c; --gold: #f1c40f; --panel: rgba(0, 0, 0, 0.9);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+        body { background: #000; color: #fff; overflow: hidden; touch-action: none; }
+        #app-container {
+            position: relative; width: 100vw; height: 100vh;
+            max-width: 500px; max-height: 850px;
+            margin: auto; border: 4px solid #333; background: #4a6741;
+        }
+        .screen {
+            position: absolute; inset: 0; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10;
+            background: var(--panel); padding: 20px; text-align: center;
+        }
+        .screen.active { display: flex; }
+        #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        .hud-top { display: flex; justify-content: space-between; padding: 15px; pointer-events: auto; }
+        .stats { background: rgba(0,0,0,0.6); padding: 8px; border: 2px solid #fff; font-size: 12px; }
+        .attempts-log { margin-top: 5px; display: flex; gap: 5px; }
+        .dot { width: 30px; height: 20px; background: #333; border: 1px solid #555; font-size: 10px; line-height: 18px; text-align: center; }
+        .dot.active { border-color: var(--gold); background: #444; }
+        .controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; pointer-events: auto; }
+        .ctrl-btn { width: 80px; height: 80px; border-radius: 50%; background: #444; border: 4px solid #fff; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .ctrl-btn.locked { background: var(--primary); transform: scale(0.9); }
+        .ctrl-btn:active { transform: scale(0.85); }
+        #force-meter { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 25px; height: 200px; background: #222; border: 2px solid #fff; }
+        #force-fill { position: absolute; bottom: 0; width: 100%; background: var(--danger); }
+        .sweet-spot { position: absolute; width: 100%; height: 20%; background: rgba(255,255,255,0.3); border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); }
+        #fire-msg { position: absolute; top: 40%; width: 100%; text-align: center; font-size: 24px; color: var(--gold); display: none; text-shadow: 2px 2px #000; }
+        .ranking-box { width: 100%; max-height: 200px; overflow-y: auto; margin: 15px 0; background: #111; padding: 10px; }
+        .ranking-row { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #222; }
+        canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+        .btn-main { background: var(--primary); color: #fff; border: none; padding: 12px 25px; margin: 8px; cursor: pointer; font-weight: bold; border-bottom: 4px solid #196f3d; }
+        .config-input { background: #333; color: var(--gold); border: 1px solid #555; padding: 5px; width: 60px; text-align: center; }
+        #egg-title { cursor: pointer; transition: color 0.3s; }
+        #egg-title.active { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+    </style>
+</head>
+<body>
+<div id="app-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-ui">
+        <div class="hud-top">
+            <div class="stats">TENTATIVAS<div class="attempts-log" id="log-dots"></div></div>
+            <div class="stats" style="text-align: right;">TOTAL SCORE<br><span id="score-total" style="font-size: 20px; color: var(--gold);">0</span></div>
+        </div>
+        <div id="force-meter"><div class="sweet-spot" style="top: 30%;"></div><div id="force-fill" style="height: 0%;"></div></div>
+        <div id="fire-msg">LANÇANDO...</div>
+        <div class="controls">
+            <button class="ctrl-btn" id="btn-angle">ÂNGULO</button>
+            <button class="ctrl-btn" id="btn-force">FORÇA</button>
+        </div>
+    </div>
+    <div id="scr-start" class="screen active">
+        <h1 id="egg-title">ROBIN H.OLD</h1><p style="color: #888; font-size: 11px;">v2.2 Egg Edition</p>
+        <div class="ranking-box" id="rank-start"></div>
+        <button class="btn-main" onclick="Engine.changeScreen('game')">JOGAR AGORA</button>
+        <button class="btn-main" style="background:#2980b9; border-color:#1a5276;" onclick="Engine.changeScreen('config')">CONFIGURAÇÕES</button>
+    </div>
+    <div id="scr-result" class="screen">
+        <h2 id="result-title">TREINO CONCLUÍDO</h2>
+        <div style="font-size: 40px; color: var(--gold); margin: 20px 0;" id="result-score">0</div>
+        <div class="ranking-box" id="rank-result"></div>
+        <button class="btn-main" onclick="Engine.resetGame()">TENTAR NOVAMENTE</button>
+        <button class="btn-main" style="background:#7f8c8d; border-color:#616a6b;" onclick="Engine.changeScreen('start')">VOLTAR AO MENU</button>
+    </div>
+    <div id="scr-config" class="screen">
+        <h3>CONFIGURAÇÕES</h3>
+        <div style="text-align: left; width: 100%; margin: 20px 0;">
+            <p>Velocidade Pêndulo: <input type="number" step="0.001" id="cfg-pendulum" class="config-input"></p><br>
+            <p>Gravidade Flecha: <input type="number" step="0.05" id="cfg-grav" class="config-input"></p>
+        </div>
+        <button class="btn-main" onclick="Engine.saveConfig()">SALVAR E VOLTAR</button>
+    </div>
+</div>
+
+<script>
+'use strict';
+const Engine = (() => {
+    let CFG = { PENDULUM_SPD: 0.003, GRAVITY: 0.25, MAX_SHOTS: 5 };
+    let state = {
+        screen: 'start', scoreTotal: 0, currentShot: 0, shotsData: [],
+        angle: 0, power: 0, angleLocked: false, powerLocked: false,
+        isFiring: false, arrow: null, lastTime: 0,
+        egg: false, eggClicks: 0
+    };
+    let canvas, ctx, powerOsc = 0;
+
+    const init = () => {
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        loadSettings();
+        renderRankings();
+        window.addEventListener('resize', resize);
+        resize();
+        document.getElementById('btn-angle').addEventListener('pointerdown', () => lock('angle'));
+        document.getElementById('btn-force').addEventListener('pointerdown', () => lock('power'));
+        
+        // Easter Egg Trigger: 5 cliques no título
+        document.getElementById('egg-title').addEventListener('click', (e) => {
+            state.eggClicks++;
+            if(state.eggClicks >= 5) {
+                state.egg = !state.egg;
+                state.eggClicks = 0;
+                e.target.classList.toggle('active', state.egg);
+            }
+        });
+
+        requestAnimationFrame(gameLoop);
+    };
+
+    const loadSettings = () => {
+        const saved = localStorage.getItem('robin_cfg');
+        if (saved) CFG = JSON.parse(saved);
+        document.getElementById('cfg-pendulum').value = CFG.PENDULUM_SPD;
+        document.getElementById('cfg-grav').value = CFG.GRAVITY;
+    };
+
+    const saveConfig = () => {
+        CFG.PENDULUM_SPD = parseFloat(document.getElementById('cfg-pendulum').value);
+        CFG.GRAVITY = parseFloat(document.getElementById('cfg-grav').value);
+        localStorage.setItem('robin_cfg', JSON.stringify(CFG));
+        changeScreen('start');
+    };
+
+    const changeScreen = (s) => {
+        state.screen = s;
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById('game-ui').style.display = s === 'game' ? 'block' : 'none';
+        if (s !== 'game') document.getElementById('scr-' + s).classList.add('active');
+        if (s === 'game') resetRound();
+    };
+
+    const resetRound = () => {
+        state.scoreTotal = 0; state.currentShot = 0; state.shotsData = [];
+        updateHUD(); nextArrow();
+    };
+
+    const nextArrow = () => {
+        state.angleLocked = state.powerLocked = state.isFiring = false;
+        state.arrow = null; state.power = 0;
+        document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('locked'));
+        document.getElementById('fire-msg').style.display = 'none';
+        updateHUD();
+    };
+
+    const lock = (type) => {
+        if(state.arrow) return;
+        if(type === 'angle') state.angleLocked = true;
+        if(type === 'power') state.powerLocked = true;
+        checkFire();
+    };
+
+    const checkFire = () => {
+        if(state.angleLocked) document.getElementById('btn-angle').classList.add('locked');
+        if(state.powerLocked) document.getElementById('btn-force').classList.add('locked');
+        if(state.angleLocked && state.powerLocked && !state.isFiring) {
+            state.isFiring = true;
+            document.getElementById('fire-msg').style.display = 'block';
+            setTimeout(launchArrow, 600);
+        }
+    };
+
+    const launchArrow = () => {
+        state.arrow = {
+            x: canvas.width / 2, y: canvas.height - 100, z: 1.0,
+            vx: Math.sin(state.angle) * (state.power / 6),
+            vy: -(state.power / 4), trail: []
+        };
+        document.getElementById('fire-msg').style.display = 'none';
+    };
+
+    const update = (dt) => {
+        if (state.screen !== 'game') return;
+        if (!state.angleLocked) state.angle = Math.sin(Date.now() * CFG.PENDULUM_SPD) * (Math.PI / 4);
+        if (!state.powerLocked) {
+            powerOsc += 0.005 * dt;
+            state.power = 50 + Math.sin(powerOsc) * 50;
+            document.getElementById('force-fill').style.height = state.power + '%';
+        }
+        if (state.arrow) {
+            let a = state.arrow;
+            a.trail.push({x: a.x, y: a.y});
+            if (a.trail.length > 12) a.trail.shift();
+            a.x += a.vx; a.y += a.vy; 
+            // Egg: Gravidade lunar
+            a.vy += state.egg ? 0.05 : CFG.GRAVITY; 
+            a.z -= 0.015;
+            if (a.z <= 0.15) processImpact();
+        }
+    };
+
+    const processImpact = () => {
+        const d = Math.hypot(state.arrow.x - canvas.width/2, state.arrow.y - 150);
+        const limit = state.egg ? 120 : 80;
+        let pts = d < limit ? Math.max(0, Math.floor(100 - (d / (state.egg ? 1.5 : 1)))) : 0;
+        state.shotsData.push(pts); state.scoreTotal += pts; state.currentShot++;
+        state.arrow = null;
+        if (state.currentShot >= CFG.MAX_SHOTS) setTimeout(finishGame, 800);
+        else nextArrow();
+    };
+
+    const finishGame = () => {
+        saveRank(state.scoreTotal);
+        document.getElementById('result-score').innerText = state.scoreTotal;
+        renderRankings(); changeScreen('result');
+    };
+
+    const gameLoop = (t) => {
+        const dt = t - state.lastTime;
+        state.lastTime = t;
+        update(dt);
+        draw();
+        requestAnimationFrame(gameLoop);
+    };
+
+    const draw = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = canvas.width/2;
+        // Alvo (Egg: Alvo gigante)
+        const colors = ['#fff', '#000', '#3498db', '#e74c3c', '#f1c40f'];
+        const mult = state.egg ? 1.5 : 1;
+        const r = [80*mult, 65*mult, 45*mult, 25*mult, 10*mult];
+        colors.forEach((c, i) => {
+            ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx, 150, r[i], 0, 7); ctx.fill();
+        });
+        // Arco
+        ctx.save();
+        ctx.translate(cx, canvas.height - 80);
+        ctx.rotate(state.angle);
+        ctx.strokeStyle = state.egg ? `hsl(${Date.now()%360}, 70%, 60%)` : '#fff'; 
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0,0, 50, Math.PI, 0); ctx.stroke();
+        if(!state.arrow && state.screen === 'game') {
+            ctx.fillStyle = '#f1c40f'; ctx.fillRect(-2, -50, 4, 60);
+        }
+        ctx.restore();
+        // Flecha e Rastro
+        if(state.arrow) {
+            const a = state.arrow;
+            // Egg: Rastro Arco-íris
+            ctx.strokeStyle = state.egg ? `hsl(${Date.now()%360}, 100%, 50%)` : 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = state.egg ? 4 : 2;
+            ctx.beginPath();
+            a.trail.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            ctx.save(); ctx.translate(a.x, a.y); ctx.scale(a.z, a.z);
+            ctx.fillStyle = '#fff'; ctx.fillRect(-2,-20,4,40);
+            ctx.fillStyle = '#e74c3c'; ctx.fillRect(-4,15,8,8);
+            ctx.restore();
+        }
+    };
+
+    const updateHUD = () => {
+        const dots = document.getElementById('log-dots');
+        dots.innerHTML = Array.from({length: CFG.MAX_SHOTS}, (_, i) => {
+            const val = state.shotsData[i] !== undefined ? state.shotsData[i] : '';
+            return `<div class="dot ${i===state.currentShot?'active':''}">${val}</div>`;
+        }).join('');
+        document.getElementById('score-total').innerText = state.scoreTotal;
+    };
+
+    const saveRank = (s) => {
+        let ranks = JSON.parse(localStorage.getItem('robin_ranks') || '[]');
+        ranks.push({ score: s, date: new Date().toLocaleDateString() });
+        ranks.sort((a,b) => b.score - a.score);
+        localStorage.setItem('robin_ranks', JSON.stringify(ranks.slice(0, 5)));
+    };
+
+    const renderRankings = () => {
+        const ranks = JSON.parse(localStorage.getItem('robin_ranks') || '[]');
+        const html = ranks.map((r, i) => `<div class="ranking-row"><span>#${i+1} - ${r.date}</span><span style="color:var(--gold)">${r.score} PTS</span></div>`).join('');
+        document.getElementById('rank-start').innerHTML = html || 'Sem recordes ainda.';
+        document.getElementById('rank-result').innerHTML = html;
+    };
+
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+
+    return { init, changeScreen, saveConfig, resetGame: () => changeScreen('game') };
+})();
+window.onload = Engine.init;
+</script>
+</body>
+</html>

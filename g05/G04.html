@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Flow Sênior v3.0</title>
+    <style>
+        :root {
+            --bg: #020617;
+            --surface: #0f172a;
+            --primary: #38bdf8;
+            --text: #f8fafc;
+            --accent: #818cf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+
+        body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* UI Layers */
+        header {
+            padding: 1rem;
+            background: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+            z-index: 50;
+        }
+
+        .stats { font-family: monospace; font-size: 1.1rem; color: var(--primary); font-weight: bold; }
+
+        #game-canvas { flex: 1; cursor: crosshair; touch-action: none; }
+
+        /* Views */
+        .view {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .view.active { display: flex; }
+
+        h1 { font-size: 3rem; margin-bottom: 0.5rem; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; color: transparent; }
+
+        .menu-btns { display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem; width: 100%; max-width: 300px; }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: var(--bg);
+            font-weight: 800;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+        }
+
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: #1e293b; color: var(--text); border: 1px solid #334155; }
+
+        table { width: 100%; margin: 1.5rem 0; border-collapse: collapse; }
+        th { color: var(--primary); padding: 0.5rem; border-bottom: 1px solid #334155; }
+        td { padding: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <header id="ingame-ui" style="display:none;">
+        <div class="stats">TIME: <span id="timer">0.0s</span></div>
+        <div class="stats">PAIRS: <span id="count">0/15</span></div>
+        <button class="btn" style="padding: 0.4rem 1rem; font-size: 0.8rem;" onclick="game.showHome()">Sair</button>
+    </header>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="view-home" class="view active">
+        <h1>MATH FLOW</h1>
+        <p>Combine o cálculo com o resultado correto.</p>
+        <div class="menu-btns">
+            <button class="btn" onclick="game.start()">JOGAR</button>
+            <button class="btn secondary" onclick="game.showRanking()">RANKING</button>
+        </div>
+    </div>
+
+    <div id="view-ranking" class="view">
+        <h1>RANKING</h1>
+        <table id="ranking-table">
+            <thead><tr><th>Pos</th><th>Tempo</th><th>Data</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <button class="btn secondary" onclick="game.showHome()">VOLTAR</button>
+    </div>
+
+<script>
+'use strict';
+
+const game = (() => {
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    const CONFIG = {
+        PAIRS: 15,
+        ITEM_H: 60,
+        ITEM_W_PCT: 0.85,
+        GAP: 20,
+        SPEED: 1.2
+    };
+
+    let state = {
+        running: false,
+        startTime: 0,
+        penalty: 0,
+        matched: 0,
+        offsetY: 0,
+        data: { left: [], right: [] },
+        selected: { left: null, right: null },
+        lastFrame: 0
+    };
+
+    // --- Core Logic ---
+    function initData() {
+        const pairs = [];
+        const used = new Set();
+        while(pairs.length < CONFIG.PAIRS) {
+            const a = Math.floor(Math.random() * 12) + 1;
+            const b = Math.floor(Math.random() * 12) + 1;
+            const res = a + b;
+            if(!used.has(res)) {
+                used.add(res);
+                pairs.push({ id: pairs.length, q: `${a} + ${b}`, a: `${res}` });
+            }
+        }
+
+        state.data.left = pairs.map(p => ({ ...p, val: p.q, active: true }));
+        state.data.right = [...pairs].sort(() => Math.random() - 0.5).map(p => ({ ...p, val: p.a, active: true }));
+        state.matched = 0;
+        state.offsetY = 0;
+    }
+
+    function update(now) {
+        if(!state.running) return;
+        const dt = (now - state.lastFrame) / 16.6;
+        state.lastFrame = now;
+
+        // Movimento infinito circular
+        state.offsetY += CONFIG.SPEED * dt;
+        
+        render();
+        updateUI();
+        requestAnimationFrame(update);
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const colW = canvas.width / 2;
+        
+        drawColumn('left', 0, colW);
+        drawColumn('right', colW, colW);
+    }
+
+    function drawColumn(side, xStart, width) {
+        const list = state.data[side].filter(i => i.active);
+        const itemTotalH = CONFIG.ITEM_H + CONFIG.GAP;
+        const totalContentH = list.length * itemTotalH;
+
+        list.forEach((item, index) => {
+            // Cálculo de posição com Scroll Infinito (Modulo)
+            // Lógica: (Posição base + Offset) mod Altura Total
+            let y = (index * itemTotalH + (side === 'left' ? state.offsetY : -state.offsetY)) % totalContentH;
+            if (y < -CONFIG.ITEM_H) y += totalContentH;
+            if (y > canvas.height) y -= totalContentH;
+
+            const itemW = width * CONFIG.ITEM_W_PCT;
+            const itemX = xStart + (width - itemW) / 2;
+
+            // Estilo
+            const isSel = state.selected[side] === item;
+            ctx.fillStyle = isSel ? '#1e3a8a' : '#1e293b';
+            ctx.strokeStyle = isSel ? '#38bdf8' : '#334155';
+            ctx.lineWidth = 3;
+
+            // Desenho RoundRect
+            roundRect(ctx, itemX, y, itemW, CONFIG.ITEM_H, 12, true, true);
+
+            // Texto
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 1.2rem Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText(item.val, itemX + itemW/2, y + CONFIG.ITEM_H/2 + 7);
+            
+            item.lastPos = { x: itemX, y: y, w: itemW, h: CONFIG.ITEM_H };
+        });
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+    }
+
+    // --- Input Handling ---
+    canvas.addEventListener('pointerdown', e => {
+        if(!state.running) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const side = mouseX < canvas.width / 2 ? 'left' : 'right';
+        const clickedItem = state.data[side]
+            .filter(i => i.active)
+            .find(i => {
+                const p = i.lastPos;
+                return p && mouseX >= p.x && mouseX <= p.x + p.w && mouseY >= p.y && mouseY <= p.y + p.h;
+            });
+
+        if (clickedItem) {
+            state.selected[side] = clickedItem;
+            checkMatch();
+        }
+    });
+
+    function checkMatch() {
+        const { left, right } = state.selected;
+        if(left && right) {
+            if(left.id === right.id) {
+                left.active = false;
+                right.active = false;
+                state.matched++;
+                if(state.matched === CONFIG.PAIRS) finish();
+            } else {
+                state.penalty += 2;
+            }
+            state.selected.left = null;
+            state.selected.right = null;
+        }
+    }
+
+    // --- System ---
+    function updateUI() {
+        const time = ((performance.now() - state.startTime) / 1000 + state.penalty).toFixed(1);
+        document.getElementById('timer').textContent = time + 's';
+        document.getElementById('count').textContent = `${state.matched}/${CONFIG.PAIRS}`;
+    }
+
+    function finish() {
+        state.running = false;
+        const finalTime = ((performance.now() - state.startTime) / 1000 + state.penalty).toFixed(2);
+        saveScore(finalTime);
+        alert(`Finalizado em ${finalTime}s!`);
+        game.showHome();
+    }
+
+    function saveScore(time) {
+        const scores = JSON.parse(localStorage.getItem('math_ranking') || '[]');
+        scores.push({ time: parseFloat(time), date: new Date().toLocaleDateString() });
+        scores.sort((a, b) => a.time - b.time);
+        localStorage.setItem('math_ranking', JSON.stringify(scores.slice(0, 5)));
+    }
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - document.querySelector('header').offsetHeight;
+    }
+
+    window.addEventListener('resize', resize);
+
+    return {
+        start: () => {
+            resize();
+            initData();
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('ingame-ui').style.display = 'flex';
+            state.running = true;
+            state.startTime = performance.now();
+            state.lastFrame = performance.now();
+            requestAnimationFrame(update);
+        },
+        showHome: () => {
+            state.running = false;
+            document.getElementById('ingame-ui').style.display = 'none';
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-home').classList.add('active');
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+        },
+        showRanking: () => {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            const view = document.getElementById('view-ranking');
+            view.classList.add('active');
+            const tbody = document.querySelector('#ranking-table tbody');
+            const scores = JSON.parse(localStorage.getItem('math_ranking') || '[]');
+            tbody.innerHTML = scores.map((s, i) => `<tr><td>${i+1}º</td><td>${s.time}s</td><td>${s.date}</td></tr>`).join('');
+        }
+    };
+})();
+</script>
+</body>
+</html>

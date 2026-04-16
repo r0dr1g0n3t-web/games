@@ -1,522 +1,501 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gravity Match Pro v0.8.0</title>
+    <title>Turbo JS - Ultimate Racing</title>
     <style>
         :root {
-            --bg-color: #f0f3f7;
-            --card-back: #6c5ce7;
-            --glass-bg: rgba(255, 255, 255, 0.9);
-            --accent: #ff7675;
-            --success: #00b894;
-            --primary: #4834d4;
+            --primary: #e74c3c;
+            --secondary: #2ecc71;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
         body {
-            margin: 0; padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            height: 100vh; display: flex; justify-content: center; align-items: center;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            background: #333;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #444;
+        }
+
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        .menu-card {
+            background: var(--dark);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            border: 4px solid var(--primary);
+            width: 80%;
+        }
+
+        h1 { font-size: 2.5rem; margin-bottom: 1rem; color: var(--primary); text-transform: uppercase; italic: true; }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+            transition: transform 0.2s;
+            font-weight: bold;
+        }
+
+        .btn:active { transform: scale(0.95); }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+            z-index: 5;
+        }
+
+        .stat-box {
+            background: rgba(0,0,0,0.6);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            border-left: 4px solid var(--primary);
+        }
+
+        #nitro-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 10px;
+            background: #555;
+            border-radius: 5px;
             overflow: hidden;
         }
 
-        .screen {
-            position: absolute; width: 100%; height: 100%;
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px; z-index: 10;
+        #nitro-progress {
+            width: 100%;
+            height: 100%;
+            background: #3498db;
+            transition: width 0.1s;
         }
 
-        .active-screen { display: flex !important; }
-
-        .glass-panel {
-            background: var(--glass-bg); backdrop-filter: blur(10px);
-            padding: 25px; border-radius: 24px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
-            text-align: center; width: 95%; max-width: 400px;
-            max-height: 90vh; overflow-y: auto;
+        .ranking-list {
+            margin-top: 15px;
+            text-align: left;
+            font-size: 0.9rem;
         }
 
-        #game-area { justify-content: space-between; padding: 40px 20px; }
-
-        #game-board { 
-            position: relative; 
-            width: 340px; 
-            height: 340px; 
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #444;
+            padding: 4px 0;
         }
 
-        .hud { 
-            color: white; 
-            width: 340px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: rgba(0,0,0,0.25);
-            padding: 12px 20px;
-            border-radius: 50px;
-            font-size: 1.2rem;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.1);
+        /* Mobile Controls */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 20px;
+            z-index: 5;
         }
 
-        .hud-btns { display: flex; gap: 10px; }
-
-        .skin-selector { 
-            display: flex; 
-            gap: 15px; 
-            background: rgba(255,255,255,0.15);
-            padding: 12px 25px;
-            border-radius: 50px;
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-top: 20px;
-        }
-
-        .skin-btn { 
-            width: 55px; height: 55px; border-radius: 12px; border: 3px solid white; 
-            cursor: pointer; background-size: cover; display: flex; align-items: center; 
-            justify-content: center; font-weight: bold; color: white; text-shadow: 1px 1px 2px black;
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            font-size: 1.2rem;
-            background-position: center;
-        }
-        .skin-btn.active { border-color: var(--accent); transform: scale(1.1); box-shadow: 0 0 15px var(--accent); }
-
-        .card {
-            position: absolute; width: 75px; height: 75px;
-            cursor: pointer; transition: transform 0.6s, top 0.5s, left 0.5s, opacity 0.3s;
-            transform-style: preserve-3d;
-            will-change: top, left, transform;
-            backface-visibility: hidden;            
-        }
-        .card.flipped { transform: rotateY(180deg); }
-        .card.hidden { opacity: 0; pointer-events: none; transform: scale(0) rotateY(180deg); }
-
-        .card-face {
-            position: absolute; width: 100%; height: 100%;
-            backface-visibility: hidden; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-        }
-
-        .card-front { background: white; transform: rotateY(180deg); background-repeat: no-repeat; }
-        .card-back { background-color: var(--card-back); border: 3px solid white; background-size: cover; background-position: center; }
-
-        button {
-            background: var(--accent); color: white; border: none;
-            padding: 16px 24px; border-radius: 15px; font-weight: bold;
-            cursor: pointer; margin: 8px; transition: 0.2s; width: 85%;
-            font-size: 1rem; text-transform: uppercase;
-        }
-        button:active { transform: scale(0.95); }
-
-        .icon-btn { 
-            width: 45px !important; height: 45px; padding: 0 !important; margin: 0 !important; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 1.3rem; border-radius: 50%;
-        }
-
-        table { width: 100%; margin: 10px 0; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); text-align: center; }
-
-        label { display: block; margin-top: 8px; font-size: 0.75rem; font-weight: bold; text-align: left; }
-        input[type="number"], input[type="text"] { width: 100%; padding: 6px; margin-top: 2px; border-radius: 5px; border: 1px solid #ccc; font-size: 0.8rem; }
-        .skin-config-group { border: 1px solid #ddd; padding: 8px; margin-top: 10px; border-radius: 12px; background: rgba(0,0,0,0.03); }
-
-        @keyframes storm {
-            0% { transform: scale(1) rotate(0); }
-            50% { transform: scale(0.5) rotate(180deg); }
-            100% { transform: scale(1) rotate(360deg); }
+        .ctrl-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            user-select: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="screen-menu" class="screen active-screen">
-        <div class="glass-panel">
-            <h1 style="margin:0 0 20px 0; color: var(--primary)">Gravity Match</h1>
-            <button onclick="game.start()">JOGAR</button>
-            <button onclick="game.showScreen('screen-config')" style="background:#636e72">AJUSTES</button>
-            
-            <div style="margin-top:20px">
-                <h3 style="margin: 10px 0; font-size: 1rem; opacity: 0.8;">🏆 Ranking</h3>
-                <table id="main-ranking-table">
-                    <tbody id="ranking-body"></tbody>
-                </table>
-                <p id="no-rank-msg" style="display:none; font-size:0.85rem">Nenhum recorde ainda.</p>
-            </div>
+<div id="game-container">
+    <div class="hud">
+        <div class="stat-box">FASE: <span id="level-val">1</span></div>
+        <div class="stat-box">SCORE: <span id="score-val">0</span></div>
+    </div>
+
+    <div id="nitro-bar"><div id="nitro-progress"></div></div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start-screen" class="ui-overlay">
+        <div class="menu-card">
+            <h1>TURBO RACER</h1>
+            <p>Use Setas ou WASD para dirigir.<br>Espaço para NITRO!</p>
+            <button class="btn" onclick="startGame()">INICIAR CORRIDA</button>
+            <div class="ranking-list" id="main-ranking"></div>
         </div>
     </div>
 
-    <div id="screen-config" class="screen">
-        <div class="glass-panel">
-            <h2 style="margin-bottom: 15px;">Ajustes</h2>
-            <div style="display: flex; gap: 10px;">
-                <label>Memorizar (ms): <input type="number" id="cfg-memo"></label>
-                <label>Shuffle Cada (ms): <input type="number" id="cfg-shf-time"></label>
-            </div>
-            
-            <div id="skin-inputs-container"></div>
-
-            <div style="margin-top: 15px;">
-                <button onclick="game.saveSettings()">SALVAR</button>
-                <button onclick="game.showScreen('screen-menu')" style="background:#b2bec3">VOLTAR</button>
-                <button onclick="game.clearRanking()" style="background:#ff7675; width: auto; padding: 5px 15px; font-size: 0.7rem; margin-top: 10px;">Zerar Placar</button>
-            </div>
+    <div id="game-over-screen" class="ui-overlay hidden">
+        <div class="menu-card">
+            <h1 style="color: white;">FIM DE JOGO</h1>
+            <p>Sua Pontuação: <span id="final-score">0</span></p>
+            <p>Fase Alcançada: <span id="final-level">1</span></p>
+            <button class="btn" onclick="startGame()">TENTAR NOVAMENTE</button>
         </div>
     </div>
 
-    <div id="game-area" class="screen">
-        <div class="hud">
-            <div><span id="timer">0</span>ms</div>
-            <div class="hud-btns">
-                <button class="icon-btn" onclick="game.start()" title="Reiniciar">🔄</button>
-                <button class="icon-btn" onclick="game.showScreen('screen-menu')" style="background:#636e72" title="Início">🏠</button>
-            </div>
-        </div>
+    <div id="controls" class="hidden">
+        <div class="ctrl-btn" id="btn-left">◀</div>
+        <div class="ctrl-btn" id="btn-nitro">🔥</div>
+        <div class="ctrl-btn" id="btn-right">▶</div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreVal = document.getElementById('score-val');
+    const levelVal = document.getElementById('level-val');
+    const nitroProgress = document.getElementById('nitro-progress');
+
+    // Configuration
+    const LANE_WIDTH = 80;
+    const TOTAL_LANES = 4;
+    const ROAD_WIDTH = LANE_WIDTH * TOTAL_LANES;
+    let canvasW, canvasH;
+
+    // Game State
+    let gameActive = false;
+    let score = 0;
+    let level = 1;
+    let speed = 5;
+    let roadOffset = 0;
+    let obstacles = [];
+    let enemies = [];
+    let nitro = 100;
+    let isNitroActive = false;
+    let frameCount = 0;
+
+    // Player Object
+    const player = {
+        x: 0,
+        y: 0,
+        w: 50,
+        h: 90,
+        lane: 1,
+        targetX: 0,
+        color: '#e74c3c'
+    };
+
+    // Audio Context (Web Audio API)
+    let audioCtx;
+    function playSound(freq, duration, type = 'square', vol = 0.1) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // Initialization
+    function init() {
+        canvasW = canvas.width = canvas.parentElement.clientWidth;
+        canvasH = canvas.height = canvas.parentElement.clientHeight;
+        player.x = (canvasW / 2) - (player.w / 2);
+        player.y = canvasH - 150;
+        player.targetX = player.x;
+        updateRankingDisplay();
         
-        <div id="game-board"></div>
+        if ('ontouchstart' in window) {
+            document.getElementById('controls').classList.remove('hidden');
+        }
+    }
 
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <div class="skin-selector" id="game-skin-selector"></div>
-        </div>
-    </div>
+    function startGame() {
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-over-screen').classList.add('hidden');
+        gameActive = true;
+        score = 0;
+        level = 1;
+        speed = 7;
+        nitro = 100;
+        obstacles = [];
+        enemies = [];
+        player.lane = 1;
+        player.x = getLaneX(1);
+        player.targetX = player.x;
+        loop();
+        playSound(200, 0.5, 'sawtooth');
+    }
 
-    <div id="screen-victory" class="screen">
-        <div class="glass-panel" style="border: 4px solid var(--success)">
-            <h1 style="color:var(--success); margin-top:0">VITÓRIA!</h1>
-            <p style="font-size: 1.3rem">Tempo: <strong id="final-time-display" style="color: var(--primary)"></strong>ms</p>
-            <button onclick="game.start()" style="background: var(--success)">NOVO JOGO</button>
-            <button onclick="game.showScreen('screen-menu')" style="background: #636e72">VOLTAR</button>
-        </div>
-    </div>
+    function getLaneX(lane) {
+        const roadStartX = (canvasW - ROAD_WIDTH) / 2;
+        return roadStartX + (lane * LANE_WIDTH) + (LANE_WIDTH / 2) - (player.w / 2);
+    }
 
-    <script>
-        const EMOJIS = ['🍎','🍌','🍇','🍓','🥝','🍒','🍍','🍊'];
+    // Input Handling
+    const keys = {};
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if(e.code === 'Space') isNitroActive = true;
+    });
+    window.addEventListener('keyup', e => {
+        keys[e.code] = false;
+        if(e.code === 'Space') isNitroActive = false;
+    });
 
-        class GameEngine {
-            constructor() {
-                const saved = JSON.parse(localStorage.getItem('g07_cfg'));
-                this.config = saved || {
-                    memoTime: 3000,
-                    shuffleTime: 10000,
-                    currentSkin: 0,
-                    skins: [
-                        { sprite: '', back: '' },
-                        { sprite: '', back: '' },
-                        { sprite: '', back: '' }
-                    ]
-                };
-                
-                // Variáveis de controle de ciclo (rAF)
-                this.startTime = null;
-                this.rafId = null;
-                this.lastShuffleCheck = 0;
-                
-                this.isLocked = false;
-                this.flipped = [];
-                this.cards = [];
-                
-                this.init();
-            }
+    // Mobile Input
+    document.getElementById('btn-left').ontouchstart = () => movePlayer(-1);
+    document.getElementById('btn-right').ontouchstart = () => movePlayer(1);
+    document.getElementById('btn-nitro').ontouchstart = () => isNitroActive = true;
+    document.getElementById('btn-nitro').ontouchend = () => isNitroActive = false;
 
-            init() {
-                this.renderSkinInputs();
-                this.renderRanking();
-                this.preloadSkins();
-            }
+    function movePlayer(dir) {
+        player.lane = Math.max(0, Math.min(TOTAL_LANES - 1, player.lane + dir));
+        player.targetX = getLaneX(player.lane);
+    }
 
-            // Otimização: Pre-load para evitar flicker
-            preloadSkins() {
-                this.config.skins.forEach(skin => {
-                    if(skin.sprite) new Image().src = skin.sprite;
-                    if(skin.back) new Image().src = skin.back;
-                });
-            }
+    // Game Logic
+    function update() {
+        if (!gameActive) return;
 
-            renderSkinInputs() {
-                const container = document.getElementById('skin-inputs-container');
-                container.innerHTML = this.config.skins.map((s, i) => `
-                    <div class="skin-config-group">
-                        <strong>Skin ${String.fromCharCode(65 + i)}</strong>
-                        <label>Sprite: <input type="text" id="cfg-sprite-${i}" value="${s.sprite || ''}" placeholder="URL da imagem"></label>
-                        <label>Verso: <input type="text" id="cfg-back-${i}" value="${s.back || ''}" placeholder="URL da imagem"></label>
-                    </div>
-                `).join('');
-
-                document.getElementById('cfg-memo').value = this.config.memoTime;
-                document.getElementById('cfg-shf-time').value = this.config.shuffleTime;
-            }
-
-            showScreen(id) {
-                this.stopTimers();
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
-                document.getElementById(id).classList.add('active-screen');
-                if(id === 'screen-menu') this.renderRanking();
-            }
-
-            saveSettings() {
-                this.config.memoTime = parseInt(document.getElementById('cfg-memo').value) || 3000;
-                this.config.shuffleTime = parseInt(document.getElementById('cfg-shf-time').value) || 10000;
-                
-                for(let i=0; i<3; i++) {
-                    this.config.skins[i].sprite = document.getElementById(`cfg-sprite-${i}`).value;
-                    this.config.skins[i].back = document.getElementById(`cfg-back-${i}`).value;
-                }
-
-                localStorage.setItem('g07_cfg', JSON.stringify(this.config));
-                this.preloadSkins();
-                this.showScreen('screen-menu');
-            }
-
-            start() {
-                this.stopTimers();
-                this.flipped = [];
-                this.isLocked = true;
-                this.cards = [];
-                this.lastShuffleCheck = 0;
-                
-                document.getElementById('timer').textContent = '0';
-                
-                this.renderSkinButtons();
-                this.showScreen('game-area');
-                this.createBoard();
-                
-                // Mostra as cartas para memorização
-                this.cards.forEach(c => c.el.classList.add('flipped'));
-                
-                setTimeout(() => {
-                    this.cards.forEach(c => c.el.classList.remove('flipped'));
-                    this.isLocked = false;
-                    this.startTime = performance.now(); // Mais preciso que Date.now()
-                    this.startTimers();
-                }, this.config.memoTime);
-            }
-
-            renderSkinButtons() {
-                const container = document.getElementById('game-skin-selector');
-                container.innerHTML = this.config.skins.map((s, i) => `
-                    <div class="skin-btn ${this.config.currentSkin === i ? 'active' : ''}" 
-                         style="background-image: url('${s.back}'); background-color: ${s.back ? 'transparent' : '#6c5ce7'}"
-                         onclick="game.changeSkin(${i})">
-                         ${String.fromCharCode(65 + i)}
-                    </div>
-                `).join('');
-            }
-
-            changeSkin(idx) {
-                this.config.currentSkin = idx;
-                localStorage.setItem('g07_cfg', JSON.stringify(this.config));
-                this.start(); 
-            }
-
-            // Otimização: Fisher-Yates Shuffle
-            shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-                return array;
-            }
-
-            createBoard() {
-                const board = document.getElementById('game-board');
-                board.innerHTML = '';
-                let types = [];
-                for(let i=0; i<8; i++) types.push(i, i);
-                this.shuffleArray(types);
-
-                types.forEach((type, i) => {
-                    const el = document.createElement('div');
-                    el.className = 'card';
-                    const front = document.createElement('div');
-                    front.className = 'card-face card-front';
-                    const back = document.createElement('div');
-                    back.className = 'card-face card-back';
-
-                    el.append(front, back);
-                    el.onclick = () => this.handleFlip(i);
-                    board.appendChild(el);
-
-                    const obj = { el, type, active: true, x: i % 4, y: Math.floor(i / 4) };
-                    this.cards.push(obj);
-                    this.updatePos(obj);
-                });
-                this.applySkinToCards();
-            }
-
-            applySkinToCards() {
-                const skin = this.config.skins[this.config.currentSkin];
-                this.cards.forEach(c => {
-                    const front = c.el.querySelector('.card-front');
-                    const back = c.el.querySelector('.card-back');
-                    
-                    if(skin.sprite) {
-                        front.textContent = '';
-                        front.style.backgroundImage = `url('${skin.sprite}')`;
-                        front.style.backgroundSize = '400% 200%';
-                        front.style.backgroundPosition = `${(c.type % 4) * 33.33}% ${Math.floor(c.type / 4) * 100}%`;
-                    } else {
-                        front.style.backgroundImage = 'none';
-                        front.textContent = EMOJIS[c.type];
-                        front.style.fontSize = '2.2rem';
-                    }
-
-                    if(skin.back) back.style.backgroundImage = `url('${skin.back}')`;
-                    else back.style.backgroundImage = 'none';
-                });
-            }
-
-            updatePos(c) {
-                c.el.style.left = `${c.x * 85}px`;
-                c.el.style.top = `${c.y * 85}px`;
-            }
-
-            handleFlip(idx) {
-                const card = this.cards[idx];
-                if (this.isLocked || !card.active || this.flipped.includes(card) || card.el.classList.contains('flipped')) return;
-                
-                card.el.classList.add('flipped');
-                this.flipped.push(card);
-
-                if (this.flipped.length === 2) {
-                    this.isLocked = true;
-                    this.checkMatch();
-                }
-            }
-
-            checkMatch() {
-                const [c1, c2] = this.flipped;
-                if (c1.type === c2.type) {
-                    setTimeout(() => {
-                        c1.active = c2.active = false;
-                        c1.el.classList.add('hidden');
-                        c2.el.classList.add('hidden');
-                        this.applyGravity();
-                        this.flipped = [];
-                        this.isLocked = false;
-                        this.checkWin();
-                    }, 600);
-                } else {
-                    setTimeout(() => {
-                        c1.el.classList.remove('flipped');
-                        c2.el.classList.remove('flipped');
-                        this.flipped = [];
-                        this.isLocked = false;
-                    }, 800);
-                }
-            }
-
-            applyGravity() {
-                for(let x=0; x<4; x++) {
-                    let col = this.cards.filter(c => c.x === x && c.active).sort((a,b) => b.y - a.y);
-                    col.forEach((c, i) => { c.y = 3 - i; this.updatePos(c); });
-                }
-            }
-
-            // Performance: requestAnimationFrame Loop
-            startTimers() {
-                const loop = (now) => {
-                    if(!this.startTime) return;
-                    
-                    const elapsed = Math.floor(now - this.startTime);
-                    document.getElementById('timer').textContent = elapsed;
-
-                    // Lógica do Shuffle (Storm)
-                    const currentMod = elapsed % this.config.shuffleTime;
-                    if (currentMod < this.lastShuffleCheck && !this.isLocked) {
-                        this.triggerStorm();
-                    }
-                    this.lastShuffleCheck = currentMod;
-
-                    this.rafId = requestAnimationFrame(loop);
-                };
-                this.rafId = requestAnimationFrame(loop);
-            }
-
-            stopTimers() {
-                if(this.rafId) cancelAnimationFrame(this.rafId);
-                this.rafId = null;
-                this.startTime = null;
-            }
-
-            triggerStorm() {
-                this.isLocked = true;
-                const actives = this.cards.filter(c => c.active);
-                
-                // Visual storm animation
-                actives.forEach(c => c.el.style.animation = 'storm 0.6s ease-in-out');
-                
-                setTimeout(() => {
-                    // Fisher-Yates nas posições atuais das cartas ativas
-                    const currentPositions = actives.map(c => ({x: c.x, y: c.y}));
-                    this.shuffleArray(currentPositions);
-
-                    actives.forEach((c, i) => {
-                        c.x = currentPositions[i].x; 
-                        c.y = currentPositions[i].y;
-                        this.updatePos(c);
-                        c.el.style.animation = '';
-                        c.el.classList.add('flipped'); // Revela brevemente no shuffle
-                    });
-
-                    // Pausa para re-memorizar após o shuffle
-                    setTimeout(() => {
-                        actives.forEach(c => { 
-                            if (!this.flipped.includes(c)) c.el.classList.remove('flipped'); 
-                        });
-                        this.isLocked = false;
-                    }, this.config.memoTime);
-                }, 600);
-            }
-
-            checkWin() {
-                if (this.cards.length > 0 && this.cards.every(c => !c.active)) {
-                    const finalTime = parseInt(document.getElementById('timer').textContent);
-                    this.stopTimers();
-                    this.saveScore(finalTime);
-                    document.getElementById('final-time-display').textContent = finalTime;
-                    this.showScreen('screen-victory');
-                }
-            }
-
-            saveScore(t) {
-                let rank = JSON.parse(localStorage.getItem('g07_rank') || '[]');
-                rank.push(t);
-                rank.sort((a,b) => a - b);
-                localStorage.setItem('g07_rank', JSON.stringify(rank.slice(0, 5)));
-            }
-
-            renderRanking() {
-                const body = document.getElementById('ranking-body');
-                const table = document.getElementById('main-ranking-table');
-                const msg = document.getElementById('no-rank-msg');
-                const rank = JSON.parse(localStorage.getItem('g07_rank') || '[]');
-                
-                if (rank.length > 0) {
-                    table.style.display = 'table';
-                    msg.style.display = 'none';
-                    body.innerHTML = rank.map((t, i) => `<tr><td><strong>${i+1}º</strong></td><td>${t}ms</td></tr>`).join('');
-                } else {
-                    table.style.display = 'none';
-                    msg.style.display = 'block';
-                }
-            }
-
-            clearRanking() {
-                if(confirm("Zerar recordes?")) {
-                    localStorage.removeItem('g07_rank');
-                    this.renderRanking();
-                }
-            }
+        // Input
+        if (keys['ArrowLeft'] || keys['KeyA']) { 
+            player.targetX -= 8; 
+        }
+        if (keys['ArrowRight'] || keys['KeyD']) { 
+            player.targetX += 8; 
         }
 
-        const game = new GameEngine();
-    </script>
+        // Keep player in bounds
+        const roadStartX = (canvasW - ROAD_WIDTH) / 2;
+        player.targetX = Math.max(roadStartX, Math.min(roadStartX + ROAD_WIDTH - player.w, player.targetX));
+        
+        // Smooth movement
+        player.x += (player.targetX - player.x) * 0.2;
+
+        // Nitro Logic
+        let currentSpeed = speed;
+        if (isNitroActive && nitro > 0) {
+            currentSpeed *= 1.8;
+            nitro -= 1.5;
+            if (frameCount % 5 === 0) playSound(100 + Math.random()*50, 0.05, 'sawtooth', 0.05);
+        } else {
+            if (nitro < 100) nitro += 0.2;
+            isNitroActive = false;
+        }
+        nitroProgress.style.width = nitro + '%';
+
+        // Road movement
+        roadOffset += currentSpeed;
+        score += Math.floor(currentSpeed / 5);
+        scoreVal.innerText = score;
+
+        // Level Up & Difficulty
+        if (score > level * 2000) {
+            level++;
+            speed += 1;
+            levelVal.innerText = level;
+            playSound(600, 0.3, 'sine');
+        }
+
+        // Spawn Enemies & Obstacles
+        if (frameCount % Math.max(20, 60 - level * 2) === 0) {
+            spawnEnemy();
+        }
+
+        // Update Entities
+        enemies.forEach((en, index) => {
+            en.y += currentSpeed - en.speed;
+            
+            // Collision Detection
+            if (player.x < en.x + en.w &&
+                player.x + player.w > en.x &&
+                player.y < en.y + en.h &&
+                player.y + player.h > en.y) {
+                gameOver();
+            }
+
+            // Remove off-screen
+            if (en.y > canvasH) enemies.splice(index, 1);
+        });
+
+        frameCount++;
+    }
+
+    function spawnEnemy() {
+        const lane = Math.floor(Math.random() * TOTAL_LANES);
+        const colors = ['#3498db', '#f1c40f', '#9b59b6', '#2ecc71'];
+        enemies.push({
+            x: getLaneX(lane),
+            y: -100,
+            w: 45,
+            h: 85,
+            speed: 2 + Math.random() * 3,
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvasW, canvasH);
+
+        const roadStartX = (canvasW - ROAD_WIDTH) / 2;
+
+        // Draw Grass/Background
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        // Draw Road
+        ctx.fillStyle = '#34495e';
+        ctx.fillRect(roadStartX, 0, ROAD_WIDTH, canvasH);
+
+        // Draw Lane Markings
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.setLineDash([40, 40]);
+        ctx.lineDashOffset = -roadOffset;
+        ctx.lineWidth = 4;
+        
+        for (let i = 1; i < TOTAL_LANES; i++) {
+            ctx.beginPath();
+            ctx.moveTo(roadStartX + i * LANE_WIDTH, 0);
+            ctx.lineTo(roadStartX + i * LANE_WIDTH, canvasH);
+            ctx.stroke();
+        }
+
+        // Side Borders
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#ecf0f1';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(roadStartX, -10, ROAD_WIDTH, canvasH + 20);
+
+        // Draw Enemies
+        enemies.forEach(en => drawCar(en.x, en.y, en.w, en.h, en.color));
+
+        // Draw Player
+        if (isNitroActive) {
+            // Nitro flames effect
+            ctx.fillStyle = '#f39c12';
+            ctx.fillRect(player.x + 10, player.y + player.h, player.w - 20, 20 + Math.random() * 15);
+        }
+        drawCar(player.x, player.y, player.w, player.h, player.color, true);
+    }
+
+    function drawCar(x, y, w, h, color, isPlayer = false) {
+        // Body
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 8);
+        ctx.fill();
+
+        // Windows
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x + 5, y + 15, w - 10, 20); // Front
+        ctx.fillRect(x + 5, y + 55, w - 10, 15); // Rear
+
+        // Details (Lights)
+        ctx.fillStyle = isPlayer ? '#f1c40f' : '#e74c3c';
+        ctx.fillRect(x + 5, y + 5, 10, 5);
+        ctx.fillRect(x + w - 15, y + 5, 10, 5);
+        
+        // Wheels
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x - 4, y + 10, 6, 15);
+        ctx.fillRect(x + w - 2, y + 10, 6, 15);
+        ctx.fillRect(x - 4, y + h - 25, 6, 15);
+        ctx.fillRect(x + w - 2, y + h - 25, 6, 15);
+    }
+
+    function gameOver() {
+        gameActive = false;
+        playSound(100, 0.8, 'sawtooth', 0.2);
+        document.getElementById('game-over-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('final-level').innerText = level;
+        saveScore(score);
+    }
+
+    function saveScore(s) {
+        let scores = JSON.parse(localStorage.getItem('turboRacerRanking') || '[]');
+        scores.push({score: s, date: new Date().toLocaleDateString()});
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 5);
+        localStorage.setItem('turboRacerRanking', JSON.stringify(scores));
+        updateRankingDisplay();
+    }
+
+    function updateRankingDisplay() {
+        const scores = JSON.parse(localStorage.getItem('turboRacerRanking') || '[]');
+        const html = scores.map((s, i) => `
+            <div class="ranking-item">
+                <span>#${i+1} ${s.date}</span>
+                <span>${s.score} pts</span>
+            </div>
+        `).join('') || '<p>Nenhum recorde ainda!</p>';
+        document.getElementById('main-ranking').innerHTML = '<strong>TOP 5 RANKING:</strong>' + html;
+    }
+
+    function loop() {
+        if (!gameActive) return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('resize', init);
+    init();
+
+</script>
 </body>
 </html>

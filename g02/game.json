@@ -1,6 +1,15 @@
 {
-  "title": "g2-title",
-  "description": "g2-description",
-  "category": "g2-category",
-  "version": "0.0.1"
+  "title": "Turbo Racer: Ultimate Racing",
+  "description": "Um jogo de corrida arcade em alta velocidade onde o objetivo é desviar de obstáculos, subir de fase e gerenciar o uso do nitro para alcançar a pontuação máxima.",
+  "category": "Arcade/Racing",
+  "version": "1.0.0",
+  "controls": {
+    "desktop": "Setas ou WASD para dirigir, Espaço para Nitro",
+    "mobile": "Botões na tela (Direcionais e Nitro)"
+  },
+  "settings": {
+    "initial_speed": 7,
+    "lanes": 4,
+    "nitro_max": 100
+  }
 }

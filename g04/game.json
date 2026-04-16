@@ -1,6 +1,19 @@
 {
-  "title": "g4-title",
-  "description": "g4-description",
-  "category": "g4-category",
-  "version": "0.0.1"
+  "id": "g04_gravity_match",
+  "title": "Gravity Match Pro",
+  "description": "Desafio de memória dinâmico onde as peças caem com a gravidade e o tabuleiro embaralha periodicamente (Storm Event).",
+  "category": "Puzzle/Memory",
+  "version": "1.0.0",
+  "settings": {
+    "memoTime": 3000,
+    "shuffleTime": 10000
+  },
+  "assets": {
+    "path": "./assets/",
+    "skins": [
+      { "sprite": "assets/skin1.png", "back": "assets/back1.png" },
+      { "sprite": "assets/skin2.png", "back": "assets/back2.png" },
+      { "sprite": "assets/skin3.png", "back": "assets/back3.png" }
+    ]
+  }
 }

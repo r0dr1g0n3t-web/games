@@ -1,6 +1,6 @@
 {
-  "title": "g3-title",
-  "description": "g3-description",
-  "category": "g3-category",
-  "version": "0.0.1"
+  "title": "Gravity Match Pro",
+  "description": "Um jogo de memória dinâmico com mecânicas de gravidade e eventos de 'Storm' que embaralham as cartas periodicamente, desafiando a retenção visual do jogador sob pressão de tempo.",
+  "category": "Puzzle / Memory",
+  "version": "1.0.0"
 }
