@@ -1,360 +1,210 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gravity Match Pro v0.8.0</title>
-    <style>
-        :root {
-            --primary: #6c5ce7; --accent: #ff7675; --success: #00b894;
-            --bg: #1a1a2e; --glass: rgba(255, 255, 255, 0.1);
-            --card-size: 75px; --gap: 10px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogo Abelha vs Besouro</title>
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  text-align: center;
+  background: #222;
+  color: white;
+}
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
-        
-        body {
-            margin: 0; height: 100vh; font-family: 'Segoe UI', system-ui, sans-serif;
-            background: radial-gradient(circle at center, #1e3799, #1a1a2e);
-            color: white; overflow: hidden; display: flex; justify-content: center; align-items: center;
-        }
+#gameArea {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  overflow: hidden;
+  background-size: cover;
+}
 
-        /* Estrutura de Telas */
-        .screen {
-            position: absolute; inset: 0; display: none;
-            flex-direction: column; align-items: center; justify-content: center;
-            padding: 20px; transition: opacity 0.3s;
-        }
-        .active-screen { display: flex !important; }
+.obj {
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px;
-            padding: 30px; width: 100%; max-width: 400px; text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        }
+.obj:active {
+  transform: scale(0.8);
+}
 
-        /* Game Board */
-        #game-board {
-            position: relative; 
-            width: calc((var(--card-size) * 4) + (var(--gap) * 3));
-            height: calc((var(--card-size) * 4) + (var(--gap) * 3));
-            margin: 20px auto;
-        }
+#ui {
+  padding: 10px;
+}
 
-        .card {
-            position: absolute; width: var(--card-size); height: var(--card-size);
-            cursor: pointer; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transform-style: preserve-3d;
-        }
+button {
+  padding: 10px;
+  margin: 5px;
+}
 
-        .card.flipped { transform: rotateY(180deg); }
-        .card.hidden { transform: scale(0); opacity: 0; pointer-events: none; }
-
-        .card-face {
-            position: absolute; width: 100%; height: 100%;
-            backface-visibility: hidden; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; border: 2px solid rgba(255,255,255,0.2);
-        }
-
-        .card-front { background: #fff; transform: rotateY(180deg); color: #000; }
-        .card-back { background: var(--primary); background-size: cover; }
-
-        /* HUD & UI Elements */
-        .hud {
-            display: flex; justify-content: space-between; align-items: center;
-            width: 100%; max-width: 340px; margin-bottom: 15px;
-            background: var(--glass); padding: 10px 20px; border-radius: 50px;
-        }
-
-        .shuffle-progress {
-            width: 100%; max-width: 340px; height: 6px;
-            background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 15px; overflow: hidden;
-        }
-        #shuffle-bar { height: 100%; width: 100%; background: var(--accent); transition: width 0.1s linear; }
-
-        button {
-            background: var(--accent); color: white; border: none; padding: 12px 24px;
-            border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;
-            width: 100%; margin: 8px 0;
-        }
-        button:active { transform: scale(0.95); }
-        .btn-secondary { background: #4b4b4b; }
-
-        input[type="number"], input[type="file"] {
-            width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: none;
-        }
-
-        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
-        th, td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-
-        /* Animations */
-        @keyframes storm-effect {
-            0% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(0.8) rotate(180deg); filter: hue-rotate(90deg); }
-            100% { transform: scale(1) rotate(360deg); }
-        }
-        .storming { animation: storm-effect 0.8s ease-in-out; }
-    </style>
+.hidden {
+  display: none;
+}
+</style>
 </head>
+
 <body>
 
-    <div id="screen-menu" class="screen active-screen">
-        <div class="glass-panel">
-            <h1>Gravity Match</h1>
-            <button onclick="app.startGame()">JOGAR</button>
-            <button onclick="app.showScreen('screen-config')" class="btn-secondary">AJUSTES</button>
-            <div id="ranking-container">
-                <h3>🏆 Melhores Tempos</h3>
-                <table><tbody id="ranking-body"></tbody></table>
-            </div>
-        </div>
-    </div>
+<h2>🐝 Abelha vs Besouro 🪲</h2>
 
-    <div id="screen-config" class="screen">
-        <div class="glass-panel">
-            <h2>Ajustes</h2>
-            <label>Memorização (ms)</label>
-            <input id="cfg-memo" type="number" value="3000">
-            <label>Tempo Shuffle (ms)</label>
-            <input id="cfg-shf" type="number" value="10000">
-            
-            <button onclick="app.saveSettings()">SALVAR</button>
-            <button onclick="app.showScreen('screen-menu')" class="btn-secondary">VOLTAR</button>
-        </div>
-    </div>
+<div id="setup">
+  <p>Escolha as imagens:</p>
+  Fundo: <input type="file" id="bgInput"><br>
+  Abelha: <input type="file" id="beeInput"><br>
+  Besouro: <input type="file" id="bugInput"><br><br>
+  <button onclick="startGame()">Iniciar Jogo</button>
+</div>
 
-    <div id="screen-game" class="screen">
-        <div class="hud">
-            <span>⏱️ <b id="timer">0.00</b>s</span>
-            <button onclick="app.startGame()" style="width: auto; padding: 5px 15px;">🔄</button>
-        </div>
+<div id="ui" class="hidden">
+  <p>Pontos: <span id="score">0</span> | Vidas: <span id="lives">3</span> | Fase: <span id="level">1</span> | Tempo: <span id="time">20</span></p>
+</div>
 
-        <div id="game-board"></div>
+<div id="gameArea"></div>
 
-        <div class="shuffle-progress">
-            <div id="shuffle-bar"></div>
-        </div>
-    </div>
+<div id="message"></div>
 
-    <div id="screen-victory" class="screen">
-        <div class="glass-panel">
-            <h1 style="color: var(--success)">VITÓRIA!</h1>
-            <p>Seu tempo: <span id="final-time"></span></p>
-            <button onclick="app.startGame()">JOGAR NOVAMENTE</button>
-            <button onclick="app.showScreen('screen-menu')" class="btn-secondary">MENU</button>
-        </div>
-    </div>
+<script>
+let bgImg, beeImg, bugImg;
+let score = 0;
+let lives = 3;
+let level = 1;
+let time = 20;
+let gameInterval;
+let spawnInterval;
 
-    <script>
-        const EMOJIS = ['🍎', '💎', '🦊', '🚀', '🌈', '👻', '🍕', '🎸'];
+function loadImage(input, callback) {
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = e => callback(e.target.result);
+  reader.readAsDataURL(file);
+}
 
-        class GameEngine {
-            constructor() {
-                this.config = JSON.parse(localStorage.getItem('gm_pro_cfg')) || {
-                    memoTime: 3000,
-                    shuffleTime: 12000
-                };
-                this.ranking = JSON.parse(localStorage.getItem('gm_pro_rank')) || [];
-                this.state = {
-                    cards: [], flipped: [], isLocked: true, 
-                    startTime: 0, timerId: null, shuffleProgress: 0
-                };
-                this.init();
-            }
+function startGame() {
+  loadImage(bgInput, img => {
+    bgImg = img;
+    loadImage(beeInput, img2 => {
+      beeImg = img2;
+      loadImage(bugInput, img3 => {
+        bugImg = img3;
 
-            init() {
-                document.getElementById('cfg-memo').value = this.config.memoTime;
-                document.getElementById('cfg-shf').value = this.config.shuffleTime;
-                this.renderRanking();
-            }
+        document.getElementById("setup").classList.add("hidden");
+        document.getElementById("ui").classList.remove("hidden");
 
-            showScreen(id) {
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
-                document.getElementById(id).classList.add('active-screen');
-                if(id === 'screen-menu') this.renderRanking();
-            }
+        nextLevel();
+      });
+    });
+  });
+}
 
-            saveSettings() {
-                this.config.memoTime = parseInt(document.getElementById('cfg-memo').value);
-                this.config.shuffleTime = parseInt(document.getElementById('cfg-shf').value);
-                localStorage.setItem('gm_pro_cfg', JSON.stringify(this.config));
-                this.showScreen('screen-menu');
-            }
+function nextLevel() {
+  document.getElementById("message").innerHTML = "Fase " + level;
+  setTimeout(() => {
+    document.getElementById("message").innerHTML = "";
+    startLevel();
+  }, 1500);
+}
 
-            startGame() {
-                this.state = { ...this.state, cards: [], flipped: [], isLocked: true, startTime: Date.now() };
-                const board = document.getElementById('game-board');
-                board.innerHTML = '';
-                
-                // Gerar pares
-                let types = [...Array(8).keys()].flatMap(i => [i, i]).sort(() => Math.random() - 0.5);
-                
-                types.forEach((type, i) => {
-                    const card = this.createCardElement(type, i);
-                    board.appendChild(card.el);
-                    this.state.cards.push(card);
-                });
+function startLevel() {
+  const gameArea = document.getElementById("gameArea");
+  gameArea.style.backgroundImage = `url(${bgImg})`;
 
-                this.showScreen('screen-game');
-                this.revealAll(true);
+  time = 20;
+  updateUI();
 
-                setTimeout(() => {
-                    this.revealAll(false);
-                    this.state.isLocked = false;
-                    this.state.startTime = Date.now();
-                    this.startLoops();
-                }, this.config.memoTime);
-            }
+  gameInterval = setInterval(() => {
+    time--;
+    updateUI();
+    if (time <= 0) {
+      clearInterval(gameInterval);
+      clearInterval(spawnInterval);
+      level++;
+      if (level > 5) {
+        endGame("Você venceu!");
+      } else {
+        nextLevel();
+      }
+    }
+  }, 1000);
 
-            createCardElement(type, id) {
-                const el = document.createElement('div');
-                el.className = 'card';
-                el.innerHTML = `
-                    <div class="card-face card-front">${EMOJIS[type]}</div>
-                    <div class="card-face card-back"></div>
-                `;
-                
-                const cardObj = { 
-                    id, type, el, 
-                    active: true, 
-                    gridX: id % 4, 
-                    gridY: Math.floor(id / 4) 
-                };
+  spawnInterval = setInterval(spawnObject, Math.max(800 - level * 100, 300));
+}
 
-                el.onclick = () => this.handleFlip(cardObj);
-                this.updateCardPosition(cardObj);
-                return cardObj;
-            }
+function spawnObject() {
+  const gameArea = document.getElementById("gameArea");
 
-            updateCardPosition(card) {
-                const step = 75 + 10; // size + gap
-                card.el.style.left = `${card.gridX * step}px`;
-                card.el.style.top = `${card.gridY * step}px`;
-            }
+  let obj = document.createElement("img");
+  obj.classList.add("obj");
 
-            revealAll(show) {
-                this.state.cards.forEach(c => show ? c.el.classList.add('flipped') : c.el.classList.remove('flipped'));
-            }
+  let isBug = Math.random() > 0.5;
+  obj.src = isBug ? bugImg : beeImg;
 
-            handleFlip(card) {
-                if (this.state.isLocked || !card.active || this.state.flipped.includes(card)) return;
+  let size = Math.random() * 60 + 40;
+  obj.style.width = size + "px";
 
-                card.el.classList.add('flipped');
-                this.state.flipped.push(card);
+  let x = Math.random() * (gameArea.clientWidth - size);
+  let y = Math.random() * (gameArea.clientHeight - size);
 
-                if (this.state.flipped.length === 2) {
-                    this.checkMatch();
-                }
-            }
+  obj.style.left = x + "px";
+  obj.style.top = y + "px";
 
-            checkMatch() {
-                this.state.isLocked = true;
-                const [c1, c2] = this.state.flipped;
+  obj.onclick = () => {
+    if (isBug) {
+      score += 2;
+      playSound(600);
+    } else {
+      score -= 1;
+      lives--;
+      playSound(200);
+    }
 
-                if (c1.type === c2.type) {
-                    setTimeout(() => {
-                        c1.active = c2.active = false;
-                        c1.el.classList.add('hidden');
-                        c2.el.classList.add('hidden');
-                        this.applyGravity();
-                        this.state.flipped = [];
-                        this.state.isLocked = false;
-                        this.checkWin();
-                    }, 500);
-                } else {
-                    setTimeout(() => {
-                        c1.el.classList.remove('flipped');
-                        c2.el.classList.remove('flipped');
-                        this.state.flipped = [];
-                        this.state.isLocked = false;
-                    }, 800);
-                }
-            }
+    animateClick(obj);
+    updateUI();
 
-            applyGravity() {
-                for (let x = 0; x < 4; x++) {
-                    let column = this.state.cards
-                        .filter(c => c.gridX === x && c.active)
-                        .sort((a, b) => b.gridY - a.gridY);
-                    
-                    column.forEach((card, index) => {
-                        card.gridY = 3 - index;
-                        this.updateCardPosition(card);
-                    });
-                }
-            }
+    if (lives <= 0) {
+      endGame("Game Over");
+    }
 
-            triggerStorm() {
-                this.state.isLocked = true;
-                const boardEl = document.getElementById('game-board');
-                boardEl.classList.add('storming');
+    obj.remove();
+  };
 
-                setTimeout(() => {
-                    // Embaralhar posições dos ativos
-                    let activeCards = this.state.cards.filter(c => c.active);
-                    let positions = activeCards.map(c => ({x: c.gridX, y: c.gridY})).sort(() => Math.random() - 0.5);
-                    
-                    activeCards.forEach((c, i) => {
-                        c.gridX = positions[i].x;
-                        c.gridY = positions[i].y;
-                        this.updateCardPosition(c);
-                    });
+  gameArea.appendChild(obj);
 
-                    boardEl.classList.remove('storming');
-                    this.state.isLocked = false;
-                }, 800);
-            }
+  setTimeout(() => {
+    obj.remove();
+  }, Math.max(2000 - level * 200, 800));
+}
 
-            startLoops() {
-                if(this.state.timerId) clearInterval(this.state.timerId);
-                
-                const stormTick = 100;
-                let stormAccumulator = 0;
+function animateClick(obj) {
+  obj.style.transform = "scale(1.5)";
+  obj.style.opacity = "0";
+}
 
-                this.state.timerId = setInterval(() => {
-                    // Update Timer
-                    const elapsed = (Date.now() - this.state.startTime) / 1000;
-                    document.getElementById('timer').textContent = elapsed.toFixed(2);
+function updateUI() {
+  document.getElementById("score").innerText = score;
+  document.getElementById("lives").innerText = lives;
+  document.getElementById("level").innerText = level;
+  document.getElementById("time").innerText = time;
+}
 
-                    // Update Shuffle Bar
-                    stormAccumulator += stormTick;
-                    const progress = 100 - ((stormAccumulator % this.config.shuffleTime) / this.config.shuffleTime * 100);
-                    document.getElementById('shuffle-bar').style.width = `${progress}%`;
+function endGame(msg) {
+  clearInterval(gameInterval);
+  clearInterval(spawnInterval);
+  document.getElementById("message").innerHTML = msg + "<br><button onclick='location.reload()'>Reiniciar</button>";
+}
 
-                    if(stormAccumulator % this.config.shuffleTime < stormTick) {
-                        this.triggerStorm();
-                    }
-                }, stormTick);
-            }
+function playSound(freq) {
+  let ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let osc = ctx.createOscillator();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.connect(ctx.destination);
+  osc.start();
+  setTimeout(() => osc.stop(), 100);
+}
+</script>
 
-            checkWin() {
-                if (this.state.cards.every(c => !c.active)) {
-                    clearInterval(this.state.timerId);
-                    const finalTime = (Date.now() - this.state.startTime) / 1000;
-                    document.getElementById('final-time').textContent = `${finalTime.toFixed(2)}s`;
-                    this.saveScore(finalTime.toFixed(2));
-                    this.showScreen('screen-victory');
-                }
-            }
-
-            saveScore(time) {
-                this.ranking.push(time);
-                this.ranking.sort((a, b) => a - b);
-                this.ranking = this.ranking.slice(0, 5);
-                localStorage.setItem('gm_pro_rank', JSON.stringify(this.ranking));
-            }
-
-            renderRanking() {
-                const body = document.getElementById('ranking-body');
-                body.innerHTML = this.ranking.length 
-                    ? this.ranking.map((t, i) => `<tr><td>#${i+1}</td><td>${t}s</td></tr>`).join('')
-                    : '<tr><td colspan="2">Nenhum recorde</td></tr>';
-            }
-        }
-
-        const app = new GameEngine();
-    </script>
 </body>
 </html>
