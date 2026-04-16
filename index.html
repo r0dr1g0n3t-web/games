@@ -93,12 +93,20 @@
 </div>
 
 <script>
+
     async function loadGames() {
+        const grid = document.getElementById('game-grid');
         try {
             const response = await fetch('./database.json');
+            if (!response.ok) throw new Error("Database not found");
+
             const games = await response.json();
-            const grid = document.getElementById('game-grid');
             grid.innerHTML = '';
+
+            if (games.length === 0) {
+                grid.innerHTML = '<p style="padding:20px;">No games found. Add folders like /g01/ with game.json and icon.png</p>';
+                return;
+            }
 
             games.forEach(game => {
                 const card = document.createElement('div');
@@ -107,25 +115,33 @@
                     <img src="${game.icon}" class="icon" onerror="this.src='https://via.placeholder.com/80?text=App'">
                     <div class="info">
                         <h3>${game.title}</h3>
-                        <p>${game.category}</p>
+                        <p>${game.category || 'Game'}</p>
                     </div>
                     <div class="actions">
                         <a href="${game.path}" class="btn-play">GET</a>
-                        <button class="btn-share" onclick="shareGame('${game.title}', '${window.location.href}${game.id}')">Share</button>
+                        <button class="btn-share" onclick="shareGame('${game.title}', '${window.location.origin}${window.location.pathname}${game.id}')">Share</button>
                     </div>
                 `;
                 grid.appendChild(card);
             });
         } catch (e) {
-            console.error("Error loading games list.", e);
+            console.error("Catalog Error:", e);
+            grid.innerHTML = `
+                <div class="card">
+                    <div class="info">
+                        <h3>Updating Arcade...</h3>
+                        <p>The game list is being synchronized. Please refresh in a few seconds.</p>
+                    </div>
+                </div>`;
         }
     }
 
     function shareGame(title, url) {
         if (navigator.share) {
-            navigator.share({ title: title, url: url });
+            navigator.share({ title: title, url: url }).catch(console.error);
         } else {
-            alert("Link copied: " + url);
+            navigator.clipboard.writeText(url);
+            alert("Link copied to clipboard!");
         }
     }
 
