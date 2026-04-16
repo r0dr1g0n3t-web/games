@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Game Arcade</title>
     <style>
         :root {
@@ -18,6 +18,16 @@
             background-color: var(--bg);
             color: var(--text-main);
             margin: 0; padding: 20px;
+            overflow-y: auto;
+            transition: background 0.3s;
+        }
+
+        /* Trava o scroll e evita saltos de layout no mobile */
+        body.game-open { 
+            overflow: hidden; 
+            height: 100vh;
+            position: fixed;
+            width: 100%;
         }
 
         header { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
@@ -55,8 +65,6 @@
         .info h3 { margin: 0; font-size: 18px; }
         .info p { margin: 4px 0; font-size: 14px; color: var(--text-sub); }
 
-        .actions { display: flex; flex-direction: column; gap: 8px; }
-
         .btn-play {
             background: var(--bg);
             color: var(--accent);
@@ -66,22 +74,48 @@
             font-weight: 700;
             cursor: pointer;
             text-decoration: none;
-            text-align: center;
         }
 
-        .btn-share {
-            background: transparent;
-            color: var(--text-sub);
+        /* --- OVERLAY DO ARCADE (IFRAME) --- */
+        #game-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            z-index: 9999;
+        }
+
+        #game-frame {
+            width: 100%; height: 100%;
             border: none;
-            font-size: 12px;
-            cursor: pointer;
+            background: #000;
         }
 
-        /* Shimmer Loading Animation */
-        .skeleton { height: 120px; background: #eee; border-radius: 20px; }
+        .btn-close {
+            position: fixed;
+            top: 20px; left: 20px;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .skeleton { height: 120px; background: #e1e1e1; border-radius: 20px; }
     </style>
 </head>
 <body>
+
+<div id="game-overlay">
+    <button class="btn-close" onclick="closeGame()">✕ Sair</button>
+    <iframe id="game-frame" allow="autoplay; fullscreen; gamepad; focus-without-user-activation"></iframe>
+</div>
 
 <header>
     <h1>Arcade</h1>
@@ -93,18 +127,49 @@
 </div>
 
 <script>
+    const overlay = document.getElementById('game-overlay');
+    const frame = document.getElementById('game-frame');
+
+    // Abre o jogo e ajusta a URL/Scroll
+    function openGame(url, gameId) {
+        document.body.classList.add('game-open');
+        overlay.style.display = 'block';
+        frame.src = url;
+        
+        // Atualiza a URL sem recarregar a página (ex: ?g=g01)
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?g=' + gameId;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+    }
+
+    // Fecha o jogo e restaura o catálogo
+    function closeGame() {
+        document.body.classList.remove('game-open');
+        overlay.style.display = 'none';
+        frame.src = ""; // Encerra o jogo e o áudio imediatamente
+        
+        // Limpa a URL voltando para o catálogo
+        const homeUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.pushState({ path: homeUrl }, '', homeUrl);
+    }
+
+    // Suporte para o botão "Voltar" do navegador/celular
+    window.onpopstate = function() {
+        if (overlay.style.display === 'block') {
+            closeGame();
+        }
+    };
 
     async function loadGames() {
         const grid = document.getElementById('game-grid');
         try {
             const response = await fetch('./database.json');
-            if (!response.ok) throw new Error("Database not found");
+            if (!response.ok) throw new Error("Database offline");
 
             const games = await response.json();
             grid.innerHTML = '';
 
             if (games.length === 0) {
-                grid.innerHTML = '<p style="padding:20px;">No games found. Add folders like /g01/ with game.json and icon.png</p>';
+                grid.innerHTML = '<p style="padding:40px;">Nenhum jogo encontrado no servidor.</p>';
                 return;
             }
 
@@ -115,33 +180,25 @@
                     <img src="${game.icon}" class="icon" onerror="this.src='https://via.placeholder.com/80?text=App'">
                     <div class="info">
                         <h3>${game.title}</h3>
-                        <p>${game.category || 'Game'}</p>
+                        <p>${game.category || 'Arcade Game'}</p>
                     </div>
                     <div class="actions">
-                        <a href="${game.path}" class="btn-play">GET</a>
-                        <button class="btn-share" onclick="shareGame('${game.title}', '${window.location.origin}${window.location.pathname}${game.id}')">Share</button>
+                        <button onclick="openGame('${game.path}', '${game.id}')" class="btn-play">PLAY</button>
                     </div>
                 `;
                 grid.appendChild(card);
             });
-        } catch (e) {
-            console.error("Catalog Error:", e);
-            grid.innerHTML = `
-                <div class="card">
-                    <div class="info">
-                        <h3>Updating Arcade...</h3>
-                        <p>The game list is being synchronized. Please refresh in a few seconds.</p>
-                    </div>
-                </div>`;
-        }
-    }
 
-    function shareGame(title, url) {
-        if (navigator.share) {
-            navigator.share({ title: title, url: url }).catch(console.error);
-        } else {
-            navigator.clipboard.writeText(url);
-            alert("Link copied to clipboard!");
+            // Checa se a URL já veio com um jogo aberto (Ex: após um refresh ou link direto)
+            const urlParams = new URLSearchParams(window.location.search);
+            const autoGame = urlParams.get('g');
+            if (autoGame) {
+                const gameData = games.find(g => g.id === autoGame);
+                if (gameData) openGame(gameData.path, gameData.id);
+            }
+
+        } catch (e) {
+            grid.innerHTML = '<div class="card"><div class="info"><h3>Erro de Conexão</h3><p>Verificando banco de dados...</p></div></div>';
         }
     }
 
