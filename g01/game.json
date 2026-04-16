@@ -1,6 +1,16 @@
 {
-  "title": "g1-title",
-  "description": "g1-description",
-  "category": "g1-category",
-  "version": "0.0.1"
+  "id": "g01_abelha_besouro",
+  "title": "Abelha vs Besouro: Senior Edition",
+  "description": "Um jogo rítmico de agilidade onde você deve derrotar besouros e proteger as abelhas.",
+  "category": "Arcade/Agility",
+  "version": "1.0.0",
+  "settings": {
+    "difficulty_levels": 5,
+    "initial_lives": 3,
+    "round_duration_seconds": 20
+  },
+  "assets": {
+    "path": "./assets/",
+    "images": ["g01-abelha.jpg", "g01-besouro.jpg", "g01-fundo.jpg"]
+  }
 }
