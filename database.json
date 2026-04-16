@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "title": "g1-title",
+    "description": "g1-description",
+    "category": "g1-category",
+    "version": "0.0.1",
+    "id": "g01",
+    "path": "./g01/index.html",
+    "icon": "./g01/icon.png"
+  },
+  {
+    "title": "g2-title",
+    "description": "g2-description",
+    "category": "g2-category",
+    "version": "0.0.1",
+    "id": "g02",
+    "path": "./g02/index.html",
+    "icon": "./g02/icon.png"
+  },
+  {
+    "title": "g3-title",
+    "description": "g3-description",
+    "category": "g3-category",
+    "version": "0.0.1",
+    "id": "g03",
+    "path": "./g03/index.html",
+    "icon": "./g03/icon.png"
+  },
+  {
+    "title": "g4-title",
+    "description": "g4-description",
+    "category": "g4-category",
+    "version": "0.0.1",
+    "id": "g04",
+    "path": "./g04/index.html",
+    "icon": "./g04/icon.png"
+  },
+  {
+    "title": "g5-title",
+    "description": "g5-description",
+    "category": "g5-category",
+    "version": "0.0.1",
+    "id": "g05",
+    "path": "./g05/index.html",
+    "icon": "./g05/icon.png"
+  },
+  {
+    "title": "g6-title",
+    "description": "g6-description",
+    "category": "g6-category",
+    "version": "0.0.1",
+    "id": "g06",
+    "path": "./g06/index.html",
+    "icon": "./g06/icon.png"
+  }
+]
