@@ -1,6 +1,6 @@
 {
-  "title": "g6-title",
-  "description": "g6-description",
-  "category": "g6-category",
-  "version": "0.0.1"
+  "title": "Robin H.old v2.2 - Egg Edition",
+  "description": "Um simulador de arquearia estilo arcade com mecânicas de precisão, oscilação de ângulo e força, incluindo um sistema de ranking local e um Easter Egg secreto.",
+  "category": "Arcade/Sports",
+  "version": "2.2.0"
 }

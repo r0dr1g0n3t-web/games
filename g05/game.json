@@ -1,6 +1,6 @@
 {
-  "title": "g5-title",
-  "description": "g5-description",
-  "category": "g5-category",
-  "version": "0.0.1"
+  "title": "Math Flow Sênior v3.0",
+  "description": "Um jogo de raciocínio lógico e agilidade mental onde o jogador deve combinar cálculos matemáticos com seus respectivos resultados em um fluxo de scroll infinito.",
+  "category": "Educativo/Puzzle",
+  "version": "3.0.0"
 }
