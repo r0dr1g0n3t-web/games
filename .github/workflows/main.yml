@@ -3,15 +3,20 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'g*/**' # Only runs when files in g-folders change
+      - 'g*/**'
+
+# --- ADD THIS SECTION ---
+permissions:
+  contents: write
+# ------------------------
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4 # Updated to v4 to avoid the Node.js warning
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Updated to v5
         with:
           python-version: '3.x'
       - name: Run Scanner
